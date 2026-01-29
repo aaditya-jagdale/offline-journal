@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/modules/editor/screens/entry_editor_screen.dart';
@@ -6,27 +5,60 @@ import 'package:jrnl/modules/home/widgets/entry_card.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/analytics_service.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  String version = "";
+
+  void setVersion() async {
+    PackageInfo packageInfo = await PackageInfo.fromPlatform();
+
+    String version = packageInfo.version;
+    String buildNumber = packageInfo.buildNumber;
+
+    setState(() {
+      this.version = "$version ($buildNumber)";
+    });
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setVersion();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final entriesAsync = ref.watch(entriesProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text("JRNL"),
+        title: Column(
+          children: [
+            Text("JRNL", style: TextStyle(fontWeight: FontWeight.w600)),
+            Text(
+              "by @aaditya_fr",
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.normal),
+            ),
+          ],
+        ),
         centerTitle: true,
         actions: [
-          if (kDebugMode)
-            IconButton(
-              icon: const Icon(Icons.bug_report_outlined),
-              onPressed: () async {
-                await AnalyticsService.instance.logEvent(name: 'test');
-              },
-            ),
+          // if (kDebugMode)
+          //   IconButton(
+          //     icon: const Icon(Icons.bug_report_outlined),
+          //     onPressed: () async {
+          //       await AnalyticsService.instance.logEvent(name: 'test');
+          //     },
+          //   ),
           IconButton(
             icon: ref.read(preferencesProvider).value?.theme == AppTheme.dark
                 ? Icon(Icons.light_mode_outlined)
@@ -42,47 +74,45 @@ class HomeScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SafeArea(
-        child: entriesAsync.when(
-          data: (entries) {
-            if (entries.isEmpty) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      'No entries yet',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: theme.colorScheme.onSurface.withOpacity(0.5),
-                      ),
+      body: entriesAsync.when(
+        data: (entries) {
+          if (entries.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'No entries yet',
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Tap + to start writing',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: theme.colorScheme.onSurface.withOpacity(0.3),
-                      ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Tap + to start writing',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: theme.colorScheme.onSurface.withOpacity(0.3),
                     ),
-                  ],
-                ),
-              );
-            }
-            return ListView.builder(
-              itemCount: entries.length,
-              itemBuilder: (context, index) {
-                final entry = entries[index];
-                return EntryCard(
-                  entry: entry,
-                  onTap: () => _openEditor(context, ref, entryId: entry.id),
-                );
-              },
+                  ),
+                ],
+              ),
             );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => Center(child: Text('Error: $error')),
-        ),
+          }
+          return ListView.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) {
+              final entry = entries[index];
+              return EntryCard(
+                entry: entry,
+                onTap: () => _openEditor(context, ref, entryId: entry.id),
+              );
+            },
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => Center(child: Text('Error: $error')),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _createNewEntry(context, ref),

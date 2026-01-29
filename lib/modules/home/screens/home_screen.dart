@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/modules/editor/screens/entry_editor_screen.dart';
 import 'package:jrnl/modules/home/widgets/entry_card.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
+import 'package:jrnl/services/analytics_service.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -18,6 +20,13 @@ class HomeScreen extends ConsumerWidget {
         title: Text("JRNL"),
         centerTitle: true,
         actions: [
+          if (kDebugMode)
+            IconButton(
+              icon: const Icon(Icons.bug_report_outlined),
+              onPressed: () async {
+                await AnalyticsService.instance.logEvent(name: 'test');
+              },
+            ),
           IconButton(
             icon: ref.read(preferencesProvider).value?.theme == AppTheme.dark
                 ? Icon(Icons.light_mode_outlined)
@@ -90,6 +99,8 @@ class HomeScreen extends ConsumerWidget {
         context,
         MaterialPageRoute(builder: (_) => EntryEditorScreen(entryId: entry.id)),
       );
+
+      await AnalyticsService.instance.logEvent(name: 'create_entry');
     }
   }
 

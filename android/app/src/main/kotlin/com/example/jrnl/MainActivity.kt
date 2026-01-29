@@ -1,4 +1,4 @@
-package com.example.jrnl
+package com.jrnl.android
 
 import io.flutter.embedding.android.FlutterActivity
 

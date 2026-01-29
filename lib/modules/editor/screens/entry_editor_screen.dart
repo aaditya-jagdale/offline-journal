@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:jrnl/modules/consts/prompt.dart';
 import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
@@ -267,8 +268,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   }
 
   void _copyEntry() {
-    Clipboard.setData(ClipboardData(text: _controller.text));
-    SnackbarService().show(context, 'Copied to clipboard');
+    Clipboard.setData(
+      ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
+    );
+    SnackbarService().show(context, 'Copied with secret prompt');
   }
 
   @override
@@ -350,30 +353,27 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   ),
                 ],
               ),
-              body: Stack(
+              body: Column(
                 children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 60),
-                    child: TextField(
-                      controller: _controller,
-                      onChanged: (_) => _onTextChanged(),
-                      maxLines: null,
-                      expands: true,
-                      autofocus: true,
-                      style: textStyle,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        hintText: 'Start writing...',
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      child: TextField(
+                        controller: _controller,
+                        onChanged: (_) => _onTextChanged(),
+                        maxLines: null,
+                        expands: true,
+                        autofocus: true,
+                        style: textStyle,
+                        decoration: const InputDecoration(
+                          border: InputBorder.none,
+                          hintText: 'Start writing...',
+                        ),
+                        textAlignVertical: TextAlignVertical.top,
                       ),
-                      textAlignVertical: TextAlignVertical.top,
                     ),
                   ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: DynamicBottomToolbar(isTyping: _isTyping),
-                  ),
+                  DynamicBottomToolbar(isTyping: _isTyping),
                 ],
               ),
             );

@@ -56,6 +56,8 @@ dependencies:
   firebase_analytics: ^12.1.1
   firebase_core: ^4.4.0
   package_info_plus: ^9.0.0
+  superwallkit_flutter: ^2.0.5
+  firebase_auth: ^6.1.4
 
 dev_dependencies:
   flutter_test:
@@ -85,6 +87,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/
     - assets/icons/
 

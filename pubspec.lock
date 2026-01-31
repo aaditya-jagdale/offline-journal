@@ -233,6 +233,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.1"
+  equatable:
+    dependency: transitive
+    description:
+      name: equatable
+      sha256: "3e0141505477fd8ad55d6eb4e7776d3fe8430be8e497ccb1521370c3f21a3e2b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.8"
   fake_async:
     dependency: transitive
     description:
@@ -768,14 +776,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "7.0.1"
-  pigeon:
-    dependency: transitive
-    description:
-      name: pigeon
-      sha256: "5889b1a88204ed646229447a898e8c3389a8f906b087ea1d3d4b09338730b3c9"
-      url: "https://pub.dev"
-    source: hosted
-    version: "25.5.0"
   platform:
     dependency: transitive
     description:
@@ -816,6 +816,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.5.0"
+  purchases_flutter:
+    dependency: "direct main"
+    description:
+      name: purchases_flutter
+      sha256: cdb7046f0aa2e78ea165fb23c9406a5ee1676a65fb48012d7d7551a4d7234065
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.10.8"
+  purchases_ui_flutter:
+    dependency: "direct main"
+    description:
+      name: purchases_ui_flutter
+      sha256: "55ccc7de7211d6d8f08e95490a40b1ed35b1810d8a71b7615074a8e14dedefed"
+      url: "https://pub.dev"
+    source: hosted
+    version: "9.10.8"
   riverpod:
     dependency: transitive
     description:
@@ -1053,14 +1069,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  superwallkit_flutter:
-    dependency: "direct main"
-    description:
-      name: superwallkit_flutter
-      sha256: fa7c9946fd7597131c0c759b1bf209ca6238bb4456e1c935c153e86229d793c2
-      url: "https://pub.dev"
-    source: hosted
-    version: "2.4.7"
   synchronized:
     dependency: transitive
     description:

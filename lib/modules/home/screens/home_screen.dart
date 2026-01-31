@@ -5,8 +5,10 @@ import 'package:jrnl/modules/home/widgets/entry_card.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/analytics_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:superwallkit_flutter/superwallkit_flutter.dart';
+// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
+import 'package:purchases_flutter/purchases_flutter.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -36,15 +38,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   void pressedWorkoutButton() {
-    // remotely decide if a paywall is shown and if
-    // navigation.startWorkout() is a paid-only feature
-    Superwall.shared.registerPlacement(
-      'session_start',
-      feature: () {
-        // _createNewEntry(context, ref);
-        print("==================session_start==================");
-      },
-    );
+    RevenueCatService.instance.presentPaywall();
   }
 
   @override

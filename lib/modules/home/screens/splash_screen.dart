@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:jrnl/modules/home/screens/home_screen.dart';
 import 'package:jrnl/modules/shared/widgets/custom_progress_indicator.dart';
 import 'package:jrnl/modules/shared/widgets/transitions.dart';
-import 'package:superwallkit_flutter/superwallkit_flutter.dart';
+// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -20,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (FirebaseAuth.instance.currentUser == null) {
         await FirebaseAuth.instance.signInAnonymously();
       }
-      Superwall.shared.identify(FirebaseAuth.instance.currentUser!.uid);
+      // Superwall.shared.identify(FirebaseAuth.instance.currentUser!.uid);
       if (mounted) {
         clearAllAndPush(context, const HomeScreen());
       }

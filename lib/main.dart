@@ -11,8 +11,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:jrnl/firebase_options.dart';
 import 'package:jrnl/services/analytics_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 
-import 'package:superwallkit_flutter/superwallkit_flutter.dart';
+// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,9 @@ void main() async {
     !kDebugMode,
   );
   await AnalyticsService.instance.setAnalyticsCollectionEnabled(!kDebugMode);
+
+  // Initialize RevenueCat
+  await RevenueCatService.instance.initialize();
 
   FlutterError.onError = (errorDetails) {
     debugPrint("==================CRASHLYTICS==================");
@@ -39,10 +43,10 @@ void main() async {
     return true;
   };
 
-  final apiKey = Platform.isIOS
-      ? dotenv.env['SUPERWALL_API_KEY_IOS']!
-      : dotenv.env['SUPERWALL_API_KEY_ANDROID']!;
-  Superwall.configure(apiKey);
+  // final apiKey = Platform.isIOS
+  //     ? dotenv.env['SUPERWALL_API_KEY_IOS']!
+  //     : dotenv.env['SUPERWALL_API_KEY_ANDROID']!;
+  // Superwall.configure(apiKey);
   runApp(const ProviderScope(child: MyApp()));
 }
 

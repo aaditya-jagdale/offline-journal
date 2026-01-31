@@ -1,24 +1,31 @@
-import 'package:firebase_analytics/firebase_analytics.dart';
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:jrnl/modules/home/screens/home_screen.dart';
+import 'package:jrnl/modules/home/screens/splash_screen.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/theme/app_theme.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:jrnl/firebase_options.dart';
 import 'package:jrnl/services/analytics_service.dart';
-import 'dart:ui';
+import 'package:jrnl/services/revenuecat_service.dart';
+
+// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  await dotenv.load();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await FirebaseCrashlytics.instance.setCrashlyticsCollectionEnabled(
     !kDebugMode,
   );
-  await AnalyticsService.instance.setAnalyticsCollectionEnabled(true);
+  await AnalyticsService.instance.setAnalyticsCollectionEnabled(!kDebugMode);
+
+  // Initialize RevenueCat
+  await RevenueCatService.instance.initialize();
 
   FlutterError.onError = (errorDetails) {
     debugPrint("==================CRASHLYTICS==================");
@@ -36,6 +43,10 @@ void main() async {
     return true;
   };
 
+  // final apiKey = Platform.isIOS
+  //     ? dotenv.env['SUPERWALL_API_KEY_IOS']!
+  //     : dotenv.env['SUPERWALL_API_KEY_ANDROID']!;
+  // Superwall.configure(apiKey);
   runApp(const ProviderScope(child: MyApp()));
 }
 
@@ -54,7 +65,7 @@ class MyApp extends ConsumerWidget {
             ? AppThemeData.light()
             : AppThemeData.dark(),
         navigatorObservers: [AnalyticsService.instance.observer],
-        home: const HomeScreen(),
+        home: const SplashScreen(),
       ),
       loading: () => MaterialApp(
         debugShowCheckedModeBanner: false,

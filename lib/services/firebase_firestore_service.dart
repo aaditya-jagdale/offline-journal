@@ -6,8 +6,6 @@ class FirebaseFirestoreService {
   static FirebaseFirestore get _db => FirebaseFirestore.instance;
   static String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
-  /// Backs up all entries to Firestore for the current user.
-  /// Robustly handles empty lists and large datasets via chunked batches.
   static Future<void> backupAllEntries(List<EntryModel> entries) async {
     final uid = _uid;
     if (uid == null) return;
@@ -20,7 +18,6 @@ class FirebaseFirestoreService {
 
     final entriesCol = userDoc.collection('entries');
 
-    // 1. Clear old backup (if any)
     final existing = await entriesCol.get();
     await _commitInBatches(existing.docs.map((d) => d.reference).toList(), (
       batch,
@@ -29,7 +26,6 @@ class FirebaseFirestoreService {
       batch.delete(ref as DocumentReference);
     });
 
-    // 2. Upload new backup
     await _commitInBatches(entries, (batch, entry) {
       batch.set(entriesCol.doc(entry.id), {
         'id': entry.id,
@@ -39,24 +35,19 @@ class FirebaseFirestoreService {
       });
     });
 
-    // 3. Update "lastBackUp" timestamp on user document
     await userDoc.set({
       'lastBackUp': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
-  /// Syncs only the changes (updates/inserts and deletions) to Firestore.
-  static Future<void> syncChanges(
-    List<EntryModel> updates,
-    List<String> deletedIds,
-  ) async {
+  static Future<void> syncChanges(List<EntryModel> updates) async {
     final uid = _uid;
     if (uid == null) return;
 
     final userDoc = _db.collection('users').doc(uid);
     final entriesCol = userDoc.collection('entries');
 
-    // 1. Process Updates
+    // 1. Process Updates (Active & Soft Deleted)
     if (updates.isNotEmpty) {
       await _commitInBatches(updates, (batch, entry) {
         batch.set(entriesCol.doc(entry.id), {
@@ -64,18 +55,12 @@ class FirebaseFirestoreService {
           'body': entry.body,
           'createdAt': Timestamp.fromDate(entry.createdAt),
           'updatedAt': Timestamp.fromDate(entry.updatedAt),
+          'isDeleted': entry.isDeleted,
         }, SetOptions(merge: true));
       });
     }
 
-    // 2. Process Deletions
-    if (deletedIds.isNotEmpty) {
-      await _commitInBatches(deletedIds, (batch, id) {
-        batch.delete(entriesCol.doc(id));
-      });
-    }
-
-    // 3. Update Metadata
+    // 2. Update Metadata
     await userDoc.set({
       'lastBackUp': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
@@ -97,7 +82,6 @@ class FirebaseFirestoreService {
     }
   }
 
-  /// Retrieves the last successful backup time.
   static Future<DateTime?> getLastBackupTime() async {
     final uid = _uid;
     if (uid == null) return null;

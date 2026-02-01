@@ -25,6 +25,7 @@ mixin _$EntryModel {
   String get body => throw _privateConstructorUsedError;
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
+  bool get isDeleted => throw _privateConstructorUsedError;
 
   /// Serializes this EntryModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -43,7 +44,13 @@ abstract class $EntryModelCopyWith<$Res> {
     $Res Function(EntryModel) then,
   ) = _$EntryModelCopyWithImpl<$Res, EntryModel>;
   @useResult
-  $Res call({String id, String body, DateTime createdAt, DateTime updatedAt});
+  $Res call({
+    String id,
+    String body,
+    DateTime createdAt,
+    DateTime updatedAt,
+    bool isDeleted,
+  });
 }
 
 /// @nodoc
@@ -65,6 +72,7 @@ class _$EntryModelCopyWithImpl<$Res, $Val extends EntryModel>
     Object? body = null,
     Object? createdAt = null,
     Object? updatedAt = null,
+    Object? isDeleted = null,
   }) {
     return _then(
       _value.copyWith(
@@ -84,6 +92,10 @@ class _$EntryModelCopyWithImpl<$Res, $Val extends EntryModel>
                 ? _value.updatedAt
                 : updatedAt // ignore: cast_nullable_to_non_nullable
                       as DateTime,
+            isDeleted: null == isDeleted
+                ? _value.isDeleted
+                : isDeleted // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -99,7 +111,13 @@ abstract class _$$EntryModelImplCopyWith<$Res>
   ) = __$$EntryModelImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String body, DateTime createdAt, DateTime updatedAt});
+  $Res call({
+    String id,
+    String body,
+    DateTime createdAt,
+    DateTime updatedAt,
+    bool isDeleted,
+  });
 }
 
 /// @nodoc
@@ -120,6 +138,7 @@ class __$$EntryModelImplCopyWithImpl<$Res>
     Object? body = null,
     Object? createdAt = null,
     Object? updatedAt = null,
+    Object? isDeleted = null,
   }) {
     return _then(
       _$EntryModelImpl(
@@ -139,6 +158,10 @@ class __$$EntryModelImplCopyWithImpl<$Res>
             ? _value.updatedAt
             : updatedAt // ignore: cast_nullable_to_non_nullable
                   as DateTime,
+        isDeleted: null == isDeleted
+            ? _value.isDeleted
+            : isDeleted // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -152,6 +175,7 @@ class _$EntryModelImpl implements _EntryModel {
     this.body = "",
     required this.createdAt,
     required this.updatedAt,
+    this.isDeleted = false,
   });
 
   factory _$EntryModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -166,10 +190,13 @@ class _$EntryModelImpl implements _EntryModel {
   final DateTime createdAt;
   @override
   final DateTime updatedAt;
+  @override
+  @JsonKey()
+  final bool isDeleted;
 
   @override
   String toString() {
-    return 'EntryModel(id: $id, body: $body, createdAt: $createdAt, updatedAt: $updatedAt)';
+    return 'EntryModel(id: $id, body: $body, createdAt: $createdAt, updatedAt: $updatedAt, isDeleted: $isDeleted)';
   }
 
   @override
@@ -182,12 +209,15 @@ class _$EntryModelImpl implements _EntryModel {
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt) &&
             (identical(other.updatedAt, updatedAt) ||
-                other.updatedAt == updatedAt));
+                other.updatedAt == updatedAt) &&
+            (identical(other.isDeleted, isDeleted) ||
+                other.isDeleted == isDeleted));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, body, createdAt, updatedAt);
+  int get hashCode =>
+      Object.hash(runtimeType, id, body, createdAt, updatedAt, isDeleted);
 
   /// Create a copy of EntryModel
   /// with the given fields replaced by the non-null parameter values.
@@ -209,6 +239,7 @@ abstract class _EntryModel implements EntryModel {
     final String body,
     required final DateTime createdAt,
     required final DateTime updatedAt,
+    final bool isDeleted,
   }) = _$EntryModelImpl;
 
   factory _EntryModel.fromJson(Map<String, dynamic> json) =
@@ -222,6 +253,8 @@ abstract class _EntryModel implements EntryModel {
   DateTime get createdAt;
   @override
   DateTime get updatedAt;
+  @override
+  bool get isDeleted;
 
   /// Create a copy of EntryModel
   /// with the given fields replaced by the non-null parameter values.

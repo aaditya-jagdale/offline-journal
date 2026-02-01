@@ -12,6 +12,7 @@ _$EntryModelImpl _$$EntryModelImplFromJson(Map<String, dynamic> json) =>
       body: json['body'] as String? ?? "",
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      isDeleted: json['isDeleted'] as bool? ?? false,
     );
 
 Map<String, dynamic> _$$EntryModelImplToJson(_$EntryModelImpl instance) =>
@@ -20,4 +21,5 @@ Map<String, dynamic> _$$EntryModelImplToJson(_$EntryModelImpl instance) =>
       'body': instance.body,
       'createdAt': instance.createdAt.toIso8601String(),
       'updatedAt': instance.updatedAt.toIso8601String(),
+      'isDeleted': instance.isDeleted,
     };

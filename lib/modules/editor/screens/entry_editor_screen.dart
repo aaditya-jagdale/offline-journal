@@ -9,6 +9,7 @@ import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
+import 'package:jrnl/riverpod/subscription_rvpd.dart';
 import 'package:jrnl/theme/app_theme.dart';
 import 'package:jrnl/widgets/top_snackbar.dart';
 
@@ -74,7 +75,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
     if (entries == null) return;
 
     final entry = entries.firstWhere(
-      (e) => e.id == widget.entry,
+      (e) => e.id == widget.entry.id,
       orElse: () => throw Exception('Entry not found'),
     );
 
@@ -201,13 +202,16 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                       child: TextField(
-                        enabled: !widget.entry.updatedAt.isBefore(
-                          DateTime(
-                            DateTime.now().year,
-                            DateTime.now().month,
-                            DateTime.now().day,
-                          ),
-                        ),
+                        enabled:
+                            (ref.read(isProProvider).value != null &&
+                                ref.read(isProProvider).value!) ||
+                            !widget.entry.createdAt.isBefore(
+                              DateTime(
+                                DateTime.now().year,
+                                DateTime.now().month,
+                                DateTime.now().day,
+                              ),
+                            ),
                         controller: _controller,
                         onChanged: (_) => _onTextChanged(),
                         maxLines: null,

@@ -18,41 +18,27 @@ class SyncService {
     try {
       _isSyncing = true;
 
-      // 1. Check Preferences
       final prefs = ref.read(preferencesProvider).value;
       if (prefs?.isAutoBackupEnabled != true) return false;
 
-      // 2. Identify Deltas
-      // If lastSyncTime is null, we sync everything (since Epoch 0)
       final lastSync =
           prefs?.lastSyncTime ?? DateTime.fromMillisecondsSinceEpoch(0);
 
       final updates = await DatabaseService.getEntriesModifiedSince(lastSync);
-      final deletedIds = await DatabaseService.getDeletionQueue();
 
-      // 3. Early Exit if No Changes
-      if (updates.isEmpty && deletedIds.isEmpty) {
+      if (updates.isEmpty) {
         debugPrint('SyncService: No changes to sync (0 writes).');
         return false;
       }
 
       debugPrint(
-        'SyncService: Syncing ${updates.length} updates and ${deletedIds.length} deletions...',
+        'SyncService: Syncing ${updates.length} changes (includes soft deletes)...',
       );
 
-      // 4. Push to Cloud
-      await FirebaseFirestoreService.syncChanges(updates, deletedIds);
-
-      // 5. Commit Success (Update Local State)
-      // Capture timestamp BEFORE the sync started ideally, but effectively 'now' is fine
-      // provided we handle slight drifts. Using 'now' is safer to avoid missed windows.
+      await FirebaseFirestoreService.syncChanges(updates);
       await ref
           .read(preferencesProvider.notifier)
           .setLastSyncTime(DateTime.now());
-
-      if (deletedIds.isNotEmpty) {
-        await DatabaseService.clearDeletionQueue(deletedIds);
-      }
 
       debugPrint('SyncService: Sync complete.');
       return true;

@@ -17,20 +17,15 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 2,
+      version: 3,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
             id TEXT PRIMARY KEY,
             body TEXT NOT NULL,
             createdAt TEXT NOT NULL,
-            updatedAt TEXT NOT NULL
-          )
-        ''');
-        // Initialize deleted_entries table on fresh install
-        await db.execute('''
-          CREATE TABLE deleted_entries (
-            id TEXT PRIMARY KEY
+            updatedAt TEXT NOT NULL,
+            isDeleted INTEGER DEFAULT 0
           )
         ''');
       },
@@ -42,13 +37,36 @@ class DatabaseService {
             )
           ''');
         }
+        if (oldVersion < 3) {
+          // Add isDeleted column
+          await db.execute(
+            'ALTER TABLE entries ADD COLUMN isDeleted INTEGER DEFAULT 0',
+          );
+          // Migrate old deleted_entries to soft deletes if needed
+          // (Robustness: check if deleted_entries exists first)
+          try {
+            await db.query('deleted_entries');
+            // If we had IDs in deleted_entries, they are already gone from 'entries'
+            // so we can't 'soft delete' them effectively unless we re-insert tombstones.
+            // For simplicity in this migration, strict soft deletes start now.
+            // We can drop the old table.
+            await db.execute('DROP TABLE IF EXISTS deleted_entries');
+          } catch (_) {
+            // Table might not exist
+          }
+        }
       },
     );
   }
 
   static Future<List<EntryModel>> getAllEntries() async {
     final db = await database;
-    final maps = await db.query('entries', orderBy: 'createdAt DESC');
+    // Filter out soft-deleted entries for UI
+    final maps = await db.query(
+      'entries',
+      where: 'isDeleted = 0',
+      orderBy: 'createdAt DESC',
+    );
     return maps
         .map(
           (map) => EntryModel(
@@ -56,6 +74,7 @@ class DatabaseService {
             body: map['body'] as String,
             createdAt: DateTime.parse(map['createdAt'] as String),
             updatedAt: DateTime.parse(map['updatedAt'] as String),
+            isDeleted: (map['isDeleted'] as int? ?? 0) == 1,
           ),
         )
         .toList();
@@ -63,6 +82,7 @@ class DatabaseService {
 
   static Future<List<EntryModel>> getEntriesModifiedSince(DateTime date) async {
     final db = await database;
+    // FETCH ALL (including deleted) for sync
     final maps = await db.query(
       'entries',
       where: 'updatedAt > ?',
@@ -75,6 +95,7 @@ class DatabaseService {
             body: map['body'] as String,
             createdAt: DateTime.parse(map['createdAt'] as String),
             updatedAt: DateTime.parse(map['updatedAt'] as String),
+            isDeleted: (map['isDeleted'] as int? ?? 0) == 1,
           ),
         )
         .toList();
@@ -87,6 +108,7 @@ class DatabaseService {
       'body': entry.body,
       'createdAt': entry.createdAt.toIso8601String(),
       'updatedAt': entry.updatedAt.toIso8601String(),
+      'isDeleted': entry.isDeleted ? 1 : 0,
     });
   }
 
@@ -94,7 +116,11 @@ class DatabaseService {
     final db = await database;
     await db.update(
       'entries',
-      {'body': entry.body, 'updatedAt': entry.updatedAt.toIso8601String()},
+      {
+        'body': entry.body,
+        'updatedAt': entry.updatedAt.toIso8601String(),
+        'isDeleted': entry.isDeleted ? 1 : 0,
+      },
       where: 'id = ?',
       whereArgs: [entry.id],
     );
@@ -102,27 +128,12 @@ class DatabaseService {
 
   static Future<void> deleteEntry(String id) async {
     final db = await database;
-    await db.transaction((txn) async {
-      await txn.delete('entries', where: 'id = ?', whereArgs: [id]);
-      await txn.insert('deleted_entries', {
-        'id': id,
-      }, conflictAlgorithm: ConflictAlgorithm.replace);
-    });
-  }
-
-  static Future<List<String>> getDeletionQueue() async {
-    final db = await database;
-    final result = await db.query('deleted_entries');
-    return result.map((e) => e['id'] as String).toList();
-  }
-
-  static Future<void> clearDeletionQueue(List<String> ids) async {
-    if (ids.isEmpty) return;
-    final db = await database;
-    await db.delete(
-      'deleted_entries',
-      where: 'id IN (${List.filled(ids.length, '?').join(',')})',
-      whereArgs: ids,
+    // Soft delete: Mark isDeleted = 1 and update timestamp
+    await db.update(
+      'entries',
+      {'isDeleted': 1, 'updatedAt': DateTime.now().toIso8601String()},
+      where: 'id = ?',
+      whereArgs: [id],
     );
   }
 }

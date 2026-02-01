@@ -61,6 +61,7 @@ dependencies:
   purchases_flutter: ^9.10.8
   purchases_ui_flutter: ^9.10.8
   cloud_firestore: ^6.1.2
+  sign_in_with_apple: ^7.0.1
 
 dev_dependencies:
   flutter_test:
@@ -93,6 +94,7 @@ flutter:
     - .env
     - assets/
     - assets/icons/
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

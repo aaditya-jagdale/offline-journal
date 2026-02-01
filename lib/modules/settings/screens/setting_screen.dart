@@ -2,6 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jrnl/modules/settings/screens/login_screen.dart';
+import 'package:jrnl/modules/shared/widgets/transitions.dart';
 
 import 'package:jrnl/riverpod/auth_rvpd.dart';
 import 'package:jrnl/riverpod/backup_rvpd.dart';
@@ -87,15 +89,13 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
   }
 
   void _signIn() async {
-    try {
-      await FirebaseAuth.instance.signInAnonymously();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Sign in failed: $e')));
-      }
-    }
+    rightSlideTransition(
+      context,
+      const LoginScreen(),
+      onComplete: () {
+        setState(() {});
+      },
+    );
   }
 
   void _signOut() async {
@@ -144,7 +144,6 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
   Widget build(BuildContext context) {
     final userAsync = ref.watch(authStateChangesProvider);
     final user = userAsync.value;
-    // TODO: Hook up to RevenueCat provider if you want to show "Pro" status
 
     // Apple-like grouping colors
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -164,7 +163,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
           _SettingsSection(
             title: "Account",
             children: [
-              if (user == null)
+              if (user == null || user.isAnonymous)
                 _SettingsTile(
                   icon: CupertinoIcons.person_circle,
                   title: "Sign In",
@@ -174,14 +173,9 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
               else ...[
                 _SettingsTile(
                   icon: CupertinoIcons.person_fill,
-                  title: "User ID: ${user.uid.substring(0, 5)}...",
+                  title: user.email!,
                   iconColor: Colors.blue,
-                  showChevron: false,
-                ),
-                _SettingsTile(
-                  icon: CupertinoIcons.arrow_right_square,
-                  title: "Sign Out",
-                  iconColor: Colors.orange,
+                  trailing: Icon(Icons.logout, size: 20, color: Colors.red),
                   onTap: _signOut,
                 ),
               ],

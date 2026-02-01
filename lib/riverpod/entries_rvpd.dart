@@ -22,9 +22,10 @@ class EntriesNotifier extends AsyncNotifier<List<EntryModel>> {
     return DatabaseService.getAllEntries();
   }
 
-  /// Creates a new entry if the user is allowed.
-  /// Throws [EntryLimitException] if user is not pro and has reached the limit.
-  /// This is defense layer 3 - the final guard against bypasses.
+  Future<void> getEntries() async {
+    state = AsyncValue.data(await DatabaseService.getAllEntries());
+  }
+
   Future<EntryModel> createEntry({required bool isPro}) async {
     final currentCount = state.value?.length ?? 0;
 

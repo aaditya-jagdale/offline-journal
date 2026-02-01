@@ -17,7 +17,7 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
@@ -27,6 +27,21 @@ class DatabaseService {
             updatedAt TEXT NOT NULL
           )
         ''');
+        // Initialize deleted_entries table on fresh install
+        await db.execute('''
+          CREATE TABLE deleted_entries (
+            id TEXT PRIMARY KEY
+          )
+        ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('''
+            CREATE TABLE deleted_entries (
+              id TEXT PRIMARY KEY
+            )
+          ''');
+        }
       },
     );
   }
@@ -34,6 +49,25 @@ class DatabaseService {
   static Future<List<EntryModel>> getAllEntries() async {
     final db = await database;
     final maps = await db.query('entries', orderBy: 'createdAt DESC');
+    return maps
+        .map(
+          (map) => EntryModel(
+            id: map['id'] as String,
+            body: map['body'] as String,
+            createdAt: DateTime.parse(map['createdAt'] as String),
+            updatedAt: DateTime.parse(map['updatedAt'] as String),
+          ),
+        )
+        .toList();
+  }
+
+  static Future<List<EntryModel>> getEntriesModifiedSince(DateTime date) async {
+    final db = await database;
+    final maps = await db.query(
+      'entries',
+      where: 'updatedAt > ?',
+      whereArgs: [date.toIso8601String()],
+    );
     return maps
         .map(
           (map) => EntryModel(
@@ -68,6 +102,27 @@ class DatabaseService {
 
   static Future<void> deleteEntry(String id) async {
     final db = await database;
-    await db.delete('entries', where: 'id = ?', whereArgs: [id]);
+    await db.transaction((txn) async {
+      await txn.delete('entries', where: 'id = ?', whereArgs: [id]);
+      await txn.insert('deleted_entries', {
+        'id': id,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+    });
+  }
+
+  static Future<List<String>> getDeletionQueue() async {
+    final db = await database;
+    final result = await db.query('deleted_entries');
+    return result.map((e) => e['id'] as String).toList();
+  }
+
+  static Future<void> clearDeletionQueue(List<String> ids) async {
+    if (ids.isEmpty) return;
+    final db = await database;
+    await db.delete(
+      'deleted_entries',
+      where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: ids,
+    );
   }
 }

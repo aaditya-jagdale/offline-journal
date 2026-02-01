@@ -1,16 +1,13 @@
-import 'dart:developer';
-
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:jrnl/riverpod/auth_rvpd.dart';
-import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/backup_rvpd.dart';
-import 'package:jrnl/services/firebase_firestore_service.dart';
+import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
+import 'package:jrnl/services/sync_service.dart';
 import 'package:intl/intl.dart';
 
 class SettingScreen extends ConsumerStatefulWidget {
@@ -37,26 +34,22 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
 
       if (user == null) throw Exception('Authentication failed');
 
-      // 2. Get entries safely
-      final entries = ref.read(entriesProvider).value ?? [];
+      // 2. Perform Sync via Service
+      final success = await SyncService.instance.syncIfNeeded(ref);
 
-      if (entries.isEmpty) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('No entries to backup')));
-        }
-        return;
-      }
-
-      // 3. Perform Backup
-      await FirebaseFirestoreService.backupAllEntries(entries);
       ref.invalidate(lastBackupTimeProvider);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Backup successful!')));
+        if (success) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Backup successful!')));
+        } else {
+          // If false, it could be no changes or error. SyncService logs details.
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Backup complete (up to date).')),
+          );
+        }
       }
     } catch (e, stack) {
       debugPrint('Backup Error: $e\n$stack');
@@ -110,21 +103,21 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
   }
 
   void _deleteAccount() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showCupertinoDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => CupertinoAlertDialog(
         title: const Text('Delete Account?'),
         content: const Text(
           'This action is irreversible. All your data will be deleted.',
         ),
         actions: [
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          CupertinoDialogAction(
             onPressed: () => Navigator.pop(context, true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            isDestructiveAction: true,
             child: const Text('Delete'),
           ),
         ],
@@ -218,40 +211,47 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                     },
                   );
 
+                  final isEnabled =
+                      ref
+                          .watch(preferencesProvider)
+                          .value
+                          ?.isAutoBackupEnabled ??
+                      false;
+
                   return _SettingsTile(
                     icon: CupertinoIcons.cloud_upload_fill,
-                    title: _isBackingUp ? "Backing up..." : "Backup Data",
+                    title: _isBackingUp ? "Backing up..." : "Auto Backup",
                     subtitle: subtitle,
                     iconColor: Colors.purple,
-                    onTap: _isBackingUp || user == null
-                        ? null
-                        : () async {
-                            try {
-                              // Re-using the robust _handleBackup logic
+                    onTap: () async {
+                      // Optionally still allow manual trigger on tap if not already backing up
+                      if (!_isBackingUp) _handleBackup();
+                    },
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_isBackingUp)
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8.0),
+                            child: SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          ),
+                        CupertinoSwitch(
+                          value: isEnabled,
+                          onChanged: (value) {
+                            ref
+                                .read(preferencesProvider.notifier)
+                                .setAutoBackup(value);
+                            if (value) {
                               _handleBackup();
-
-                              // Also performing the test fetch as per user's debug intent
-                              final data = await FirebaseFirestore.instance
-                                  .collection("users")
-                                  .doc(user.uid)
-                                  .get();
-
-                              if (data.exists) {
-                                log("User data found: ${data.data()}");
-                              } else {
-                                log("No user document found for ${user.uid}");
-                              }
-                            } catch (e) {
-                              debugPrint("Error fetching data: $e");
                             }
                           },
-                    trailing: _isBackingUp
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : null,
+                        ),
+                      ],
+                    ),
                   );
                 },
               ),
@@ -286,7 +286,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
           // DANGER ZONE
           if (user != null)
             _SettingsSection(
-              title: null, // No header for this isolated button usually
+              title: "DANGER ZONE",
               children: [
                 _SettingsTile(
                   icon: CupertinoIcons.trash_fill,

@@ -45,6 +45,43 @@ class FirebaseFirestoreService {
     }, SetOptions(merge: true));
   }
 
+  /// Syncs only the changes (updates/inserts and deletions) to Firestore.
+  static Future<void> syncChanges(
+    List<EntryModel> updates,
+    List<String> deletedIds,
+  ) async {
+    final uid = _uid;
+    if (uid == null) return;
+
+    final userDoc = _db.collection('users').doc(uid);
+    final entriesCol = userDoc.collection('entries');
+
+    // 1. Process Updates
+    if (updates.isNotEmpty) {
+      await _commitInBatches(updates, (batch, entry) {
+        batch.set(entriesCol.doc(entry.id), {
+          'id': entry.id,
+          'body': entry.body,
+          'createdAt': Timestamp.fromDate(entry.createdAt),
+          'updatedAt': Timestamp.fromDate(entry.updatedAt),
+        }, SetOptions(merge: true));
+      });
+    }
+
+    // 2. Process Deletions
+    if (deletedIds.isNotEmpty) {
+      await _commitInBatches(deletedIds, (batch, id) {
+        batch.delete(entriesCol.doc(id));
+      });
+    }
+
+    // 3. Update Metadata
+    await userDoc.set({
+      'lastBackUp': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
   /// Helper to run Firestore operations in batches of 500 (Firestore limit).
   static Future<void> _commitInBatches<T>(
     List<T> items,

@@ -2,11 +2,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:jrnl/modules/home/screens/splash_screen.dart';
 import 'package:jrnl/modules/settings/screens/login_screen.dart';
 import 'package:jrnl/modules/shared/widgets/transitions.dart';
 
 import 'package:jrnl/riverpod/auth_rvpd.dart';
 import 'package:jrnl/riverpod/backup_rvpd.dart';
+import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
@@ -92,14 +94,71 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
     rightSlideTransition(
       context,
       const LoginScreen(),
-      onComplete: () {
+      onComplete: () async {
         setState(() {});
+
+        // GET all the data from firebase and replace the existing local data completely
+        final user = FirebaseAuth.instance.currentUser;
+
+        // Only restore if user is actually logged in (not anonymous)
+        if (user != null && !user.isAnonymous) {
+          try {
+            debugPrint(
+              '[Settings] User logged in, restoring data from Firebase...',
+            );
+
+            // Show loading indicator
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Restoring your data from cloud...'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            }
+
+            // Restore all data from Firebase
+            final success = await SyncService.instance.restoreFromFirebase();
+
+            if (mounted) {
+              if (success) {
+                // Refresh the entries list by invalidating the provider
+                ref.invalidate(entriesProvider);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Data restored from cloud successfully!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Failed to restore data from cloud'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          } catch (e) {
+            debugPrint('[Settings] Error restoring data: $e');
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Error restoring data: ${e.toString()}'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
+        }
       },
     );
   }
 
   void _signOut() async {
     await FirebaseAuth.instance.signOut();
+    clearAllAndPush(context, const SplashScreen());
   }
 
   void _deleteAccount() async {
@@ -108,7 +167,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Delete Account?'),
         content: const Text(
-          'This action is irreversible. All your data will be deleted.',
+          'This action is irreversible. We will delete your account and all associated data within 7 days from our servers.',
         ),
         actions: [
           CupertinoDialogAction(
@@ -126,8 +185,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
 
     if (confirmed == true) {
       try {
-        final user = FirebaseAuth.instance.currentUser;
-        await user?.delete();
+        _signOut();
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

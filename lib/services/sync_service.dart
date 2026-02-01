@@ -49,4 +49,45 @@ class SyncService {
       _isSyncing = false;
     }
   }
+
+  /// Restore all data from Firebase, replacing local data completely
+  /// This deletes ALL local entries and replaces with Firebase data
+  /// Returns [true] if successful, [false] if failed
+  Future<bool> restoreFromFirebase() async {
+    if (_isSyncing) return false;
+
+    try {
+      _isSyncing = true;
+      debugPrint('SyncService: Starting Firebase restore...');
+
+      // 1. Fetch all entries from Firebase
+      debugPrint('SyncService: Fetching all entries from Firebase...');
+      final firebaseEntries =
+          await FirebaseFirestoreService.getAllEntriesFromFirebase();
+      debugPrint(
+        'SyncService: Found ${firebaseEntries.length} entries in Firebase',
+      );
+
+      // 2. Delete all local entries
+      debugPrint('SyncService: Deleting all local entries...');
+      await DatabaseService.deleteAllEntries();
+
+      // 3. Insert Firebase entries into local database
+      if (firebaseEntries.isNotEmpty) {
+        debugPrint(
+          'SyncService: Inserting ${firebaseEntries.length} entries into local database...',
+        );
+        await DatabaseService.bulkInsertEntries(firebaseEntries);
+      }
+
+      debugPrint('SyncService: Firebase restore complete!');
+      return true;
+    } catch (e, stack) {
+      debugPrint('SyncService: Error during Firebase restore: $e');
+      debugPrint('SyncService: Stack trace: $stack');
+      return false;
+    } finally {
+      _isSyncing = false;
+    }
+  }
 }

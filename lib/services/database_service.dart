@@ -136,4 +136,32 @@ class DatabaseService {
       whereArgs: [id],
     );
   }
+
+  /// Delete all entries from local database
+  /// WARNING: This permanently removes all local data
+  static Future<void> deleteAllEntries() async {
+    final db = await database;
+    await db.delete('entries');
+  }
+
+  /// Bulk insert entries (used for restoring from Firebase)
+  /// Efficiently inserts multiple entries in a batch transaction
+  static Future<void> bulkInsertEntries(List<EntryModel> entries) async {
+    if (entries.isEmpty) return;
+
+    final db = await database;
+    final batch = db.batch();
+
+    for (final entry in entries) {
+      batch.insert('entries', {
+        'id': entry.id,
+        'body': entry.body,
+        'createdAt': entry.createdAt.toIso8601String(),
+        'updatedAt': entry.updatedAt.toIso8601String(),
+        'isDeleted': entry.isDeleted ? 1 : 0,
+      });
+    }
+
+    await batch.commit(noResult: true);
+  }
 }

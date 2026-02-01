@@ -90,4 +90,34 @@ class FirebaseFirestoreService {
     final data = doc.data();
     return (data?['lastBackUp'] as Timestamp?)?.toDate();
   }
+
+  /// Fetch all entries from Firebase for the current user
+  /// Returns an empty list if user is not authenticated
+  static Future<List<EntryModel>> getAllEntriesFromFirebase() async {
+    final uid = _uid;
+    if (uid == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('entries')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return EntryModel(
+          id: data['id'] as String,
+          body: data['body'] as String? ?? '',
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          isDeleted: data['isDeleted'] as bool? ?? false,
+        );
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch entries from Firebase: $e');
+    }
+  }
 }

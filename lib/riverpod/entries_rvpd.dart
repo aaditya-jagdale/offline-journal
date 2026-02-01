@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
+import 'package:jrnl/modules/shared/exceptions/entry_limit_exception.dart';
 import 'package:jrnl/services/database_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:uuid/uuid.dart';
 
 final entriesProvider =
@@ -8,13 +10,29 @@ final entriesProvider =
       () => EntriesNotifier(),
     );
 
+/// Provider for the current entry count from the database.
+final entryCountProvider = FutureProvider<int>((ref) async {
+  final entries = await ref.watch(entriesProvider.future);
+  return entries.length;
+});
+
 class EntriesNotifier extends AsyncNotifier<List<EntryModel>> {
   @override
   Future<List<EntryModel>> build() async {
     return DatabaseService.getAllEntries();
   }
 
-  Future<EntryModel> createEntry() async {
+  /// Creates a new entry if the user is allowed.
+  /// Throws [EntryLimitException] if user is not pro and has reached the limit.
+  /// This is defense layer 3 - the final guard against bypasses.
+  Future<EntryModel> createEntry({required bool isPro}) async {
+    final currentCount = state.value?.length ?? 0;
+
+    // Defense layer 3: Final check at creation time
+    if (!isPro && currentCount >= RevenueCatService.freeEntryLimit) {
+      throw EntryLimitException(limit: RevenueCatService.freeEntryLimit);
+    }
+
     final now = DateTime.now();
     final entry = EntryModel(
       id: const Uuid().v4(),

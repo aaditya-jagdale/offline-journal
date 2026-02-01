@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -28,17 +27,10 @@ void main() async {
   await RevenueCatService.instance.initialize();
 
   FlutterError.onError = (errorDetails) {
-    debugPrint("==================CRASHLYTICS==================");
-    debugPrint(errorDetails.toString());
-    debugPrint("=============================================");
     FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
-    debugPrint("==================CRASHLYTICS==================");
-    debugPrint(error.toString());
-    debugPrint(stack.toString());
-    debugPrint("=============================================");
     FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
     return true;
   };

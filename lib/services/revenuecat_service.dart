@@ -21,6 +21,9 @@ class RevenueCatService {
   static const String jrnlLifetimeId = 'JRNL_lifetime';
   static const String lifetimeId = 'lifetime';
 
+  /// Maximum number of free entries allowed for non-pro users.
+  static const int freeEntryLimit = 2;
+
   /// Initialize the RevenueCat SDK.
   Future<void> initialize() async {
     if (_isInitialized) return;
@@ -71,6 +74,15 @@ class RevenueCatService {
     }
   }
 
+  /// Check if user can create a new entry.
+  /// Returns true if user is pro OR has not reached the free limit.
+  /// This is the authoritative check for entry creation eligibility.
+  Future<bool> canCreateEntry(int currentEntryCount) async {
+    final isPro = await this.isPro();
+    if (isPro) return true;
+    return currentEntryCount < freeEntryLimit;
+  }
+
   /// Get available offerings.
   Future<Offerings?> getOfferings() async {
     try {
@@ -84,7 +96,7 @@ class RevenueCatService {
   /// Present the paywall.
   /// Returns the result of the paywall presentation.
   Future<PaywallResult> presentPaywall() async {
-    return await RevenueCatUI.presentPaywall();
+    return await RevenueCatUI.presentPaywall(displayCloseButton: false);
   }
 
   /// Present the paywall only if the user does not have the pro entitlement.

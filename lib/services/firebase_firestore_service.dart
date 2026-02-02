@@ -6,8 +6,6 @@ class FirebaseFirestoreService {
   static FirebaseFirestore get _db => FirebaseFirestore.instance;
   static String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
-  /// Backs up all entries to Firestore for the current user.
-  /// Robustly handles empty lists and large datasets via chunked batches.
   static Future<void> backupAllEntries(List<EntryModel> entries) async {
     final uid = _uid;
     if (uid == null) return;
@@ -20,7 +18,6 @@ class FirebaseFirestoreService {
 
     final entriesCol = userDoc.collection('entries');
 
-    // 1. Clear old backup (if any)
     final existing = await entriesCol.get();
     await _commitInBatches(existing.docs.map((d) => d.reference).toList(), (
       batch,
@@ -29,19 +26,46 @@ class FirebaseFirestoreService {
       batch.delete(ref as DocumentReference);
     });
 
-    // 2. Upload new backup
     await _commitInBatches(entries, (batch, entry) {
       batch.set(entriesCol.doc(entry.id), {
         'id': entry.id,
         'body': entry.body,
         'createdAt': Timestamp.fromDate(entry.createdAt),
         'updatedAt': Timestamp.fromDate(entry.updatedAt),
+        'hasImage': entry.hasImage,
       });
     });
 
-    // 3. Update "lastBackUp" timestamp on user document
     await userDoc.set({
       'lastBackUp': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  static Future<void> syncChanges(List<EntryModel> updates) async {
+    final uid = _uid;
+    if (uid == null) return;
+
+    final userDoc = _db.collection('users').doc(uid);
+    final entriesCol = userDoc.collection('entries');
+
+    // 1. Process Updates (Active & Soft Deleted)
+    if (updates.isNotEmpty) {
+      await _commitInBatches(updates, (batch, entry) {
+        batch.set(entriesCol.doc(entry.id), {
+          'id': entry.id,
+          'body': entry.body,
+          'createdAt': Timestamp.fromDate(entry.createdAt),
+          'updatedAt': Timestamp.fromDate(entry.updatedAt),
+          'isDeleted': entry.isDeleted,
+          'hasImage': entry.hasImage,
+        }, SetOptions(merge: true));
+      });
+    }
+
+    // 2. Update Metadata
+    await userDoc.set({
+      'lastBackUp': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
   }
 
@@ -60,7 +84,6 @@ class FirebaseFirestoreService {
     }
   }
 
-  /// Retrieves the last successful backup time.
   static Future<DateTime?> getLastBackupTime() async {
     final uid = _uid;
     if (uid == null) return null;
@@ -68,5 +91,36 @@ class FirebaseFirestoreService {
     final doc = await _db.collection('users').doc(uid).get();
     final data = doc.data();
     return (data?['lastBackUp'] as Timestamp?)?.toDate();
+  }
+
+  /// Fetch all entries from Firebase for the current user
+  /// Returns an empty list if user is not authenticated
+  static Future<List<EntryModel>> getAllEntriesFromFirebase() async {
+    final uid = _uid;
+    if (uid == null) {
+      throw Exception('User not authenticated');
+    }
+
+    try {
+      final snapshot = await _db
+          .collection('users')
+          .doc(uid)
+          .collection('entries')
+          .get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        return EntryModel(
+          id: data['id'] as String,
+          body: data['body'] as String? ?? '',
+          createdAt: (data['createdAt'] as Timestamp).toDate(),
+          updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+          isDeleted: data['isDeleted'] as bool? ?? false,
+          hasImage: data['hasImage'] as bool? ?? false,
+        );
+      }).toList();
+    } catch (e) {
+      throw Exception('Failed to fetch entries from Firebase: $e');
+    }
   }
 }

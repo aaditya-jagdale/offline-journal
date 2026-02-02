@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:jrnl/modules/editor/screens/entry_editor_screen.dart';
+import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/modules/home/widgets/entry_card.dart';
 import 'package:jrnl/modules/settings/screens/setting_screen.dart';
 import 'package:jrnl/modules/shared/widgets/transitions.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
+import 'package:jrnl/riverpod/backup_rvpd.dart';
 import 'package:jrnl/services/analytics_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
+import 'package:jrnl/services/sync_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -38,6 +40,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void initState() {
     super.initState();
     setVersion();
+    // Auto-backup on app open
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await ref.read(entriesProvider.notifier).getEntries();
+
+      await _performAutoBackup();
+    });
+  }
+
+  Future<void> _performAutoBackup() async {
+    await SyncService.instance.syncIfNeeded(ref);
+    // Invalidate main backup provider to refresh UI timestamp
+    ref.invalidate(lastBackupTimeProvider);
   }
 
   void _createNewEntry(
@@ -50,14 +64,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           .read(entriesProvider.notifier)
           .createEntry(isPro: isPro);
       if (context.mounted) {
-        Navigator.push(
+        await Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => EntryEditorScreen(entryId: entry.id),
-          ),
+          MaterialPageRoute(builder: (_) => EntryEditorScreen(entry: entry)),
         );
 
         await AnalyticsService.instance.logEvent(name: 'create_entry');
+        if (mounted) _performAutoBackup();
       }
     } catch (e) {
       // Entry limit exception caught - should not happen if UI logic is correct
@@ -117,7 +130,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 : Icon(Icons.dark_mode_outlined),
             onPressed: () {
               final currentTheme = ref.read(preferencesProvider).value?.theme;
-              final isLight = currentTheme == AppTheme.light; 
+              final isLight = currentTheme == AppTheme.light;
 
               ref
                   .read(preferencesProvider.notifier)
@@ -133,8 +146,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 BlendMode.srcIn,
               ),
             ),
-            onPressed: () {
-              upSlideTransition(context, const SettingScreen());
+            onPressed: () async {
+              await upSlideTransition(context, const SettingScreen());
+              if (mounted) _performAutoBackup();
             },
           ),
         ],
@@ -171,7 +185,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               final entry = entries[index];
               return EntryCard(
                 entry: entry,
-                onTap: () => _openEditor(context, ref, entryId: entry.id),
+                onTap: () => _openEditor(context, ref, entry: entry),
               );
             },
           );
@@ -191,11 +205,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   void _openEditor(
     BuildContext context,
     WidgetRef ref, {
-    required String entryId,
-  }) {
-    Navigator.push(
+    required EntryModel entry,
+  }) async {
+    await Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => EntryEditorScreen(entryId: entryId)),
+      MaterialPageRoute(builder: (_) => EntryEditorScreen(entry: entry)),
     );
+    if (mounted) _performAutoBackup();
   }
 }

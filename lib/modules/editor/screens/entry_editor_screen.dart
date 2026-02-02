@@ -1,21 +1,27 @@
 import 'dart:async';
-import 'dart:ui';
+import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:jrnl/modules/consts/prompt.dart';
 import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
+import 'package:jrnl/riverpod/subscription_rvpd.dart';
+import 'package:jrnl/services/cover_image_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/theme/app_theme.dart';
 import 'package:jrnl/widgets/top_snackbar.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class EntryEditorScreen extends ConsumerStatefulWidget {
-  final String entryId;
+  final EntryModel entry;
 
-  const EntryEditorScreen({super.key, required this.entryId});
+  const EntryEditorScreen({super.key, required this.entry});
 
   @override
   ConsumerState<EntryEditorScreen> createState() => _EntryEditorScreenState();
@@ -28,11 +34,20 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   bool _isTyping = false;
   bool _initialized = false;
   String _lastSavedBody = '';
+  File? _coverImageFile;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
+    _loadCoverImage();
+  }
+
+  Future<void> _loadCoverImage() async {
+    final file = await CoverImageService.getCoverImageFile(widget.entry.id);
+    if (mounted && file != null) {
+      setState(() => _coverImageFile = file);
+    }
   }
 
   @override
@@ -74,7 +89,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
     if (entries == null) return;
 
     final entry = entries.firstWhere(
-      (e) => e.id == widget.entryId,
+      (e) => e.id == widget.entry.id,
       orElse: () => throw Exception('Entry not found'),
     );
 
@@ -85,184 +100,26 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   }
 
   void _deleteEntry() {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    showDialog(
+    showCupertinoDialog(
       context: context,
       barrierColor: Colors.black.withOpacity(0.5),
-      builder: (context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          decoration: BoxDecoration(
-            color: isDark
-                ? const Color(0xFF1C1C1E).withOpacity(0.95)
-                : Colors.white.withOpacity(0.95),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isDark
-                  ? Colors.white.withOpacity(0.1)
-                  : Colors.black.withOpacity(0.05),
-              width: 0.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.5 : 0.15),
-                blurRadius: 40,
-                offset: const Offset(0, 20),
-                spreadRadius: 0,
-              ),
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 10),
-              ),
-            ],
+      builder: (context) => CupertinoAlertDialog(
+        title: Text("Delete Entry?"),
+        actions: [
+          CupertinoDialogAction(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
           ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Icon with background
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: Colors.red.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Icon(
-                        Icons.delete_outline_rounded,
-                        color: Colors.red,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    // Title
-                    Text(
-                      'Delete Entry?',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        color: isDark ? Colors.white : Colors.black,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    // Description
-                    Text(
-                      'This action cannot be undone.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: (isDark ? Colors.white : Colors.black)
-                            .withOpacity(0.6),
-                        height: 1.4,
-                        letterSpacing: -0.1,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    // Buttons
-                    Row(
-                      children: [
-                        // Cancel button
-                        Expanded(
-                          child: _buildDialogButton(
-                            label: 'Cancel',
-                            isPrimary: false,
-                            isDark: isDark,
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        // Delete button
-                        Expanded(
-                          child: _buildDialogButton(
-                            label: 'Delete',
-                            isPrimary: true,
-                            isDark: isDark,
-                            isDestructive: true,
-                            onPressed: () {
-                              Navigator.pop(context); // Close dialog
-                              Navigator.pop(
-                                this.context,
-                              ); // Go back to home first
-                              // Delete after navigation to prevent rebuild issues
-                              ref
-                                  .read(entriesProvider.notifier)
-                                  .deleteEntry(widget.entryId);
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          CupertinoDialogAction(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.pop(this.context);
+              ref.read(entriesProvider.notifier).deleteEntry(widget.entry.id);
+            },
+            isDestructiveAction: true,
+            child: const Text("Yes, Delete"),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDialogButton({
-    required String label,
-    required bool isPrimary,
-    required bool isDark,
-    bool isDestructive = false,
-    required VoidCallback onPressed,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: isPrimary
-                ? (isDestructive
-                      ? Colors.red
-                      : (isDark
-                            ? Colors.white.withOpacity(0.15)
-                            : Colors.black.withOpacity(0.08)))
-                : (isDark
-                      ? Colors.white.withOpacity(0.05)
-                      : Colors.black.withOpacity(0.03)),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isPrimary
-                  ? (isDestructive
-                        ? Colors.red.withOpacity(0.5)
-                        : (isDark
-                              ? Colors.white.withOpacity(0.2)
-                              : Colors.black.withOpacity(0.1)))
-                  : (isDark
-                        ? Colors.white.withOpacity(0.1)
-                        : Colors.black.withOpacity(0.06)),
-              width: 0.5,
-            ),
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: isPrimary ? FontWeight.w600 : FontWeight.w500,
-              color: isDestructive
-                  ? Colors.white
-                  : (isDark ? Colors.white : Colors.black),
-              letterSpacing: -0.2,
-            ),
-          ),
-        ),
+        ],
       ),
     );
   }
@@ -272,6 +129,38 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
       ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
     );
     SnackbarService().show(context, 'Copied with secret prompt');
+  }
+
+  Future<void> _pickCoverImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    final sourceFile = File(pickedFile.path);
+    await CoverImageService.saveCoverImage(widget.entry.id, sourceFile);
+    await ref.read(entriesProvider.notifier).setHasImage(widget.entry.id, true);
+
+    final savedFile = await CoverImageService.getCoverImageFile(
+      widget.entry.id,
+    );
+    if (mounted && savedFile != null) {
+      setState(() => _coverImageFile = savedFile);
+    }
+  }
+
+  Future<void> _deleteCoverImage() async {
+    await CoverImageService.deleteCoverImage(widget.entry.id);
+    await ref
+        .read(entriesProvider.notifier)
+        .setHasImage(widget.entry.id, false);
+    if (mounted) {
+      setState(() => _coverImageFile = null);
+    }
   }
 
   @override
@@ -284,7 +173,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
       data: (entries) {
         // Safely find entry, return empty scaffold if not found (during deletion)
         final entry = entries.cast<EntryModel?>().firstWhere(
-          (e) => e?.id == widget.entryId,
+          (e) => e?.id == widget.entry.id,
           orElse: () => null,
         );
 
@@ -314,6 +203,26 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   },
                 ),
                 actions: [
+                  IconButton(
+                    onPressed: () async {
+                      // Premium feature
+                      final isPro = await RevenueCatService.instance.isPro();
+                      if (!isPro) {
+                        final result = await RevenueCatService.instance
+                            .presentPaywall();
+                        if (result != PaywallResult.purchased) {
+                          // User dismissed paywall - do NOT create entry
+                          return;
+                        }
+                        _pickCoverImage();
+                        return;
+                      }
+                      _pickCoverImage();
+                      return;
+                    },
+                    icon: Icon(Icons.add_photo_alternate_outlined),
+                  ),
+
                   IconButton(
                     icon:
                         ref.read(preferencesProvider).value?.theme ==
@@ -353,17 +262,29 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   ),
                 ],
               ),
-              body: Column(
-                children: [
-                  Expanded(
-                    child: Padding(
+              body: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Cover Image Section
+                    if (_coverImageFile != null) _buildCoverImageSection(theme),
+                    // Text Editor
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                       child: TextField(
+                        enabled:
+                            (ref.read(isProProvider).value != null &&
+                                ref.read(isProProvider).value!) ||
+                            !widget.entry.createdAt.isBefore(
+                              DateTime(
+                                DateTime.now().year,
+                                DateTime.now().month,
+                                DateTime.now().day,
+                              ),
+                            ),
                         controller: _controller,
                         onChanged: (_) => _onTextChanged(),
                         maxLines: null,
-                        expands: true,
-                        autofocus: true,
+                        autofocus: _coverImageFile == null,
                         style: textStyle,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
@@ -372,10 +293,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                         textAlignVertical: TextAlignVertical.top,
                       ),
                     ),
-                  ),
-                  DynamicBottomToolbar(isTyping: _isTyping),
-                ],
+                  ],
+                ),
               ),
+              bottomNavigationBar: DynamicBottomToolbar(isTyping: _isTyping),
             );
           },
           loading: () =>
@@ -386,6 +307,40 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+    );
+  }
+
+  Widget _buildCoverImageSection(ThemeData theme) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          height: 200,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: FileImage(_coverImageFile!),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 24,
+          right: 24,
+          child: GestureDetector(
+            onTap: _deleteCoverImage,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 18),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

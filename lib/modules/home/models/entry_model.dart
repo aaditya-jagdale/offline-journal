@@ -10,6 +10,8 @@ class EntryModel with _$EntryModel {
     @Default("") String body,
     required DateTime createdAt,
     required DateTime updatedAt,
+    @Default(false) bool isDeleted,
+    @Default(false) bool hasImage,
   }) = _EntryModel;
 
   factory EntryModel.fromJson(Map<String, dynamic> json) =>

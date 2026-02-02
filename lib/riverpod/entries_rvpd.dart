@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/modules/shared/exceptions/entry_limit_exception.dart';
+import 'package:jrnl/services/cover_image_service.dart';
 import 'package:jrnl/services/database_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:uuid/uuid.dart';
@@ -22,9 +23,10 @@ class EntriesNotifier extends AsyncNotifier<List<EntryModel>> {
     return DatabaseService.getAllEntries();
   }
 
-  /// Creates a new entry if the user is allowed.
-  /// Throws [EntryLimitException] if user is not pro and has reached the limit.
-  /// This is defense layer 3 - the final guard against bypasses.
+  Future<void> getEntries() async {
+    state = AsyncValue.data(await DatabaseService.getAllEntries());
+  }
+
   Future<EntryModel> createEntry({required bool isPro}) async {
     final currentCount = state.value?.length ?? 0;
 
@@ -54,7 +56,28 @@ class EntriesNotifier extends AsyncNotifier<List<EntryModel>> {
   }
 
   Future<void> deleteEntry(String id) async {
+    // Clean up cover image file if exists
+    await CoverImageService.deleteCoverImage(id);
     await DatabaseService.deleteEntry(id);
     state = AsyncValue.data(state.value!.where((e) => e.id != id).toList());
+  }
+
+  Future<void> setHasImage(String entryId, bool hasImage) async {
+    final entries = state.value;
+    if (entries == null) return;
+
+    final entry = entries.firstWhere(
+      (e) => e.id == entryId,
+      orElse: () => throw Exception('Entry not found'),
+    );
+
+    final updated = entry.copyWith(
+      hasImage: hasImage,
+      updatedAt: DateTime.now(),
+    );
+    await DatabaseService.updateEntry(updated);
+    state = AsyncValue.data(
+      entries.map((e) => e.id == entryId ? updated : e).toList(),
+    );
   }
 }

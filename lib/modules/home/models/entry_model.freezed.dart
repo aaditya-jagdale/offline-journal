@@ -26,6 +26,7 @@ mixin _$EntryModel {
   DateTime get createdAt => throw _privateConstructorUsedError;
   DateTime get updatedAt => throw _privateConstructorUsedError;
   bool get isDeleted => throw _privateConstructorUsedError;
+  bool get hasImage => throw _privateConstructorUsedError;
 
   /// Serializes this EntryModel to a JSON map.
   Map<String, dynamic> toJson() => throw _privateConstructorUsedError;
@@ -50,6 +51,7 @@ abstract class $EntryModelCopyWith<$Res> {
     DateTime createdAt,
     DateTime updatedAt,
     bool isDeleted,
+    bool hasImage,
   });
 }
 
@@ -73,6 +75,7 @@ class _$EntryModelCopyWithImpl<$Res, $Val extends EntryModel>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? isDeleted = null,
+    Object? hasImage = null,
   }) {
     return _then(
       _value.copyWith(
@@ -96,6 +99,10 @@ class _$EntryModelCopyWithImpl<$Res, $Val extends EntryModel>
                 ? _value.isDeleted
                 : isDeleted // ignore: cast_nullable_to_non_nullable
                       as bool,
+            hasImage: null == hasImage
+                ? _value.hasImage
+                : hasImage // ignore: cast_nullable_to_non_nullable
+                      as bool,
           )
           as $Val,
     );
@@ -117,6 +124,7 @@ abstract class _$$EntryModelImplCopyWith<$Res>
     DateTime createdAt,
     DateTime updatedAt,
     bool isDeleted,
+    bool hasImage,
   });
 }
 
@@ -139,6 +147,7 @@ class __$$EntryModelImplCopyWithImpl<$Res>
     Object? createdAt = null,
     Object? updatedAt = null,
     Object? isDeleted = null,
+    Object? hasImage = null,
   }) {
     return _then(
       _$EntryModelImpl(
@@ -162,6 +171,10 @@ class __$$EntryModelImplCopyWithImpl<$Res>
             ? _value.isDeleted
             : isDeleted // ignore: cast_nullable_to_non_nullable
                   as bool,
+        hasImage: null == hasImage
+            ? _value.hasImage
+            : hasImage // ignore: cast_nullable_to_non_nullable
+                  as bool,
       ),
     );
   }
@@ -176,6 +189,7 @@ class _$EntryModelImpl implements _EntryModel {
     required this.createdAt,
     required this.updatedAt,
     this.isDeleted = false,
+    this.hasImage = false,
   });
 
   factory _$EntryModelImpl.fromJson(Map<String, dynamic> json) =>
@@ -193,10 +207,13 @@ class _$EntryModelImpl implements _EntryModel {
   @override
   @JsonKey()
   final bool isDeleted;
+  @override
+  @JsonKey()
+  final bool hasImage;
 
   @override
   String toString() {
-    return 'EntryModel(id: $id, body: $body, createdAt: $createdAt, updatedAt: $updatedAt, isDeleted: $isDeleted)';
+    return 'EntryModel(id: $id, body: $body, createdAt: $createdAt, updatedAt: $updatedAt, isDeleted: $isDeleted, hasImage: $hasImage)';
   }
 
   @override
@@ -211,13 +228,22 @@ class _$EntryModelImpl implements _EntryModel {
             (identical(other.updatedAt, updatedAt) ||
                 other.updatedAt == updatedAt) &&
             (identical(other.isDeleted, isDeleted) ||
-                other.isDeleted == isDeleted));
+                other.isDeleted == isDeleted) &&
+            (identical(other.hasImage, hasImage) ||
+                other.hasImage == hasImage));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode =>
-      Object.hash(runtimeType, id, body, createdAt, updatedAt, isDeleted);
+  int get hashCode => Object.hash(
+    runtimeType,
+    id,
+    body,
+    createdAt,
+    updatedAt,
+    isDeleted,
+    hasImage,
+  );
 
   /// Create a copy of EntryModel
   /// with the given fields replaced by the non-null parameter values.
@@ -240,6 +266,7 @@ abstract class _EntryModel implements EntryModel {
     required final DateTime createdAt,
     required final DateTime updatedAt,
     final bool isDeleted,
+    final bool hasImage,
   }) = _$EntryModelImpl;
 
   factory _EntryModel.fromJson(Map<String, dynamic> json) =
@@ -255,6 +282,8 @@ abstract class _EntryModel implements EntryModel {
   DateTime get updatedAt;
   @override
   bool get isDeleted;
+  @override
+  bool get hasImage;
 
   /// Create a copy of EntryModel
   /// with the given fields replaced by the non-null parameter values.

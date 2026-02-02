@@ -1,17 +1,22 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:jrnl/modules/consts/prompt.dart';
 import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/riverpod/subscription_rvpd.dart';
+import 'package:jrnl/services/cover_image_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/theme/app_theme.dart';
 import 'package:jrnl/widgets/top_snackbar.dart';
+import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class EntryEditorScreen extends ConsumerStatefulWidget {
   final EntryModel entry;
@@ -29,11 +34,20 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   bool _isTyping = false;
   bool _initialized = false;
   String _lastSavedBody = '';
+  File? _coverImageFile;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
+    _loadCoverImage();
+  }
+
+  Future<void> _loadCoverImage() async {
+    final file = await CoverImageService.getCoverImageFile(widget.entry.id);
+    if (mounted && file != null) {
+      setState(() => _coverImageFile = file);
+    }
   }
 
   @override
@@ -117,6 +131,38 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
     SnackbarService().show(context, 'Copied with secret prompt');
   }
 
+  Future<void> _pickCoverImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1920,
+      maxHeight: 1080,
+      imageQuality: 85,
+    );
+    if (pickedFile == null) return;
+
+    final sourceFile = File(pickedFile.path);
+    await CoverImageService.saveCoverImage(widget.entry.id, sourceFile);
+    await ref.read(entriesProvider.notifier).setHasImage(widget.entry.id, true);
+
+    final savedFile = await CoverImageService.getCoverImageFile(
+      widget.entry.id,
+    );
+    if (mounted && savedFile != null) {
+      setState(() => _coverImageFile = savedFile);
+    }
+  }
+
+  Future<void> _deleteCoverImage() async {
+    await CoverImageService.deleteCoverImage(widget.entry.id);
+    await ref
+        .read(entriesProvider.notifier)
+        .setHasImage(widget.entry.id, false);
+    if (mounted) {
+      setState(() => _coverImageFile = null);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final entriesAsync = ref.watch(entriesProvider);
@@ -158,6 +204,26 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                 ),
                 actions: [
                   IconButton(
+                    onPressed: () async {
+                      // Premium feature
+                      final isPro = await RevenueCatService.instance.isPro();
+                      if (!isPro) {
+                        final result = await RevenueCatService.instance
+                            .presentPaywall();
+                        if (result != PaywallResult.purchased) {
+                          // User dismissed paywall - do NOT create entry
+                          return;
+                        }
+                        _pickCoverImage();
+                        return;
+                      }
+                      _pickCoverImage();
+                      return;
+                    },
+                    icon: Icon(Icons.add_photo_alternate_outlined),
+                  ),
+
+                  IconButton(
                     icon:
                         ref.read(preferencesProvider).value?.theme ==
                             AppTheme.dark
@@ -196,10 +262,13 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   ),
                 ],
               ),
-              body: Column(
-                children: [
-                  Expanded(
-                    child: Padding(
+              body: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    // Cover Image Section
+                    if (_coverImageFile != null) _buildCoverImageSection(theme),
+                    // Text Editor
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
                       child: TextField(
                         enabled:
@@ -215,8 +284,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                         controller: _controller,
                         onChanged: (_) => _onTextChanged(),
                         maxLines: null,
-                        expands: true,
-                        autofocus: true,
+                        autofocus: _coverImageFile == null,
                         style: textStyle,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
@@ -225,10 +293,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                         textAlignVertical: TextAlignVertical.top,
                       ),
                     ),
-                  ),
-                  DynamicBottomToolbar(isTyping: _isTyping),
-                ],
+                  ],
+                ),
               ),
+              bottomNavigationBar: DynamicBottomToolbar(isTyping: _isTyping),
             );
           },
           loading: () =>
@@ -239,6 +307,40 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
+    );
+  }
+
+  Widget _buildCoverImageSection(ThemeData theme) {
+    return Stack(
+      children: [
+        Container(
+          width: double.infinity,
+          height: 200,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            image: DecorationImage(
+              image: FileImage(_coverImageFile!),
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 24,
+          right: 24,
+          child: GestureDetector(
+            onTap: _deleteCoverImage,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.5),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close, color: Colors.white, size: 18),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

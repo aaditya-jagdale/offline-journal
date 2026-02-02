@@ -32,6 +32,7 @@ class FirebaseFirestoreService {
         'body': entry.body,
         'createdAt': Timestamp.fromDate(entry.createdAt),
         'updatedAt': Timestamp.fromDate(entry.updatedAt),
+        'hasImage': entry.hasImage,
       });
     });
 
@@ -56,6 +57,7 @@ class FirebaseFirestoreService {
           'createdAt': Timestamp.fromDate(entry.createdAt),
           'updatedAt': Timestamp.fromDate(entry.updatedAt),
           'isDeleted': entry.isDeleted,
+          'hasImage': entry.hasImage,
         }, SetOptions(merge: true));
       });
     }
@@ -114,6 +116,7 @@ class FirebaseFirestoreService {
           createdAt: (data['createdAt'] as Timestamp).toDate(),
           updatedAt: (data['updatedAt'] as Timestamp).toDate(),
           isDeleted: data['isDeleted'] as bool? ?? false,
+          hasImage: data['hasImage'] as bool? ?? false,
         );
       }).toList();
     } catch (e) {

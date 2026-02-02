@@ -1,12 +1,49 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
+import 'package:jrnl/services/cover_image_service.dart';
 
-class EntryCard extends StatelessWidget {
+class EntryCard extends StatefulWidget {
   final EntryModel entry;
   final VoidCallback onTap;
 
   const EntryCard({super.key, required this.entry, required this.onTap});
+
+  @override
+  State<EntryCard> createState() => _EntryCardState();
+}
+
+class _EntryCardState extends State<EntryCard> {
+  File? _coverImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCoverImage();
+  }
+
+  @override
+  void didUpdateWidget(EntryCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.entry.hasImage != widget.entry.hasImage ||
+        oldWidget.entry.id != widget.entry.id) {
+      _loadCoverImage();
+    }
+  }
+
+  Future<void> _loadCoverImage() async {
+    if (!widget.entry.hasImage) {
+      if (mounted && _coverImage != null) {
+        setState(() => _coverImage = null);
+      }
+      return;
+    }
+    final file = await CoverImageService.getCoverImageFile(widget.entry.id);
+    if (mounted) {
+      setState(() => _coverImage = file);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,15 +51,15 @@ class EntryCard extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     // Get first line of body, truncated
-    final firstLine = entry.body.isEmpty
+    final firstLine = widget.entry.body.isEmpty
         ? 'Empty entry'
-        : entry.body.split('\n').first;
+        : widget.entry.body.split('\n').first;
 
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
-    final formattedDate = dateFormat.format(entry.createdAt);
+    final formattedDate = dateFormat.format(widget.entry.createdAt);
 
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
@@ -33,25 +70,45 @@ class EntryCard extends StatelessWidget {
             ),
           ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(
-              firstLine,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w400,
-                color: theme.colorScheme.onSurface,
+            // Cover image thumbnail
+            if (_coverImage != null) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  _coverImage!,
+                  width: 50,
+                  height: 50,
+                  fit: BoxFit.cover,
+                ),
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              formattedDate,
-              style: TextStyle(
-                fontSize: 13,
-                color: theme.colorScheme.onSurface.withOpacity(0.5),
+              const SizedBox(width: 12),
+            ],
+            // Text content
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    firstLine,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w400,
+                      color: theme.colorScheme.onSurface,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    formattedDate,
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: theme.colorScheme.onSurface.withOpacity(0.5),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

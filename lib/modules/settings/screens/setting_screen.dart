@@ -1,15 +1,18 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/modules/home/screens/splash_screen.dart';
 import 'package:jrnl/modules/settings/screens/login_screen.dart';
+import 'package:jrnl/modules/shared/widgets/custom_progress_indicator.dart';
 import 'package:jrnl/modules/shared/widgets/transitions.dart';
 
 import 'package:jrnl/riverpod/auth_rvpd.dart';
 import 'package:jrnl/riverpod/backup_rvpd.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
+import 'package:jrnl/services/database_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
 import 'package:intl/intl.dart';
@@ -23,6 +26,7 @@ class SettingScreen extends ConsumerStatefulWidget {
 
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool _isBackingUp = false;
+  bool _isResetting = false;
 
   void _handleBackup() async {
     setState(() => _isBackingUp = true);
@@ -307,6 +311,84 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                   );
                 },
               ),
+              // Delete local data, refetch all from cloud
+              if (kDebugMode)
+                _SettingsTile(
+                  icon: CupertinoIcons.trash,
+                  title: "Delete Local Data",
+                  iconColor: Colors.red,
+                  trailing: _isResetting ? CustomProgressIndicator() : null,
+                  onTap: () async {
+                    setState(() => _isResetting = true);
+                    DatabaseService.deleteAllEntries();
+
+                    // GET all the data from firebase and replace the existing local data completely
+                    final user = FirebaseAuth.instance.currentUser;
+
+                    // Only restore if user is actually logged in (not anonymous)
+                    if (user != null && !user.isAnonymous) {
+                      try {
+                        debugPrint(
+                          '[Settings] User logged in, restoring data from Firebase...',
+                        );
+
+                        // Show loading indicator
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Restoring your data from cloud...',
+                              ),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+
+                        // Restore all data from Firebase
+                        final success = await SyncService.instance
+                            .restoreFromFirebase();
+
+                        if (mounted) {
+                          if (success) {
+                            ref.invalidate(entriesProvider);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Data restored from cloud successfully!',
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Failed to restore data from cloud',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        }
+                      } catch (e) {
+                        debugPrint('[Settings] Error restoring data: $e');
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Error restoring data: ${e.toString()}',
+                              ),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      } finally {
+                        setState(() => _isResetting = false);
+                      }
+                    }
+                  },
+                ),
             ],
           ),
 

@@ -13,7 +13,6 @@ import 'package:jrnl/services/analytics_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-// import 'package:superwallkit_flutter/superwallkit_flutter.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {

@@ -17,7 +17,7 @@ class DatabaseService {
 
     return openDatabase(
       path,
-      version: 3,
+      version: 4,
       onCreate: (db, version) async {
         await db.execute('''
           CREATE TABLE entries (
@@ -25,7 +25,8 @@ class DatabaseService {
             body TEXT NOT NULL,
             createdAt TEXT NOT NULL,
             updatedAt TEXT NOT NULL,
-            isDeleted INTEGER DEFAULT 0
+            isDeleted INTEGER DEFAULT 0,
+            hasImage INTEGER DEFAULT 0
           )
         ''');
       },
@@ -43,17 +44,18 @@ class DatabaseService {
             'ALTER TABLE entries ADD COLUMN isDeleted INTEGER DEFAULT 0',
           );
           // Migrate old deleted_entries to soft deletes if needed
-          // (Robustness: check if deleted_entries exists first)
           try {
             await db.query('deleted_entries');
-            // If we had IDs in deleted_entries, they are already gone from 'entries'
-            // so we can't 'soft delete' them effectively unless we re-insert tombstones.
-            // For simplicity in this migration, strict soft deletes start now.
-            // We can drop the old table.
             await db.execute('DROP TABLE IF EXISTS deleted_entries');
           } catch (_) {
             // Table might not exist
           }
+        }
+        if (oldVersion < 4) {
+          // Add hasImage column
+          await db.execute(
+            'ALTER TABLE entries ADD COLUMN hasImage INTEGER DEFAULT 0',
+          );
         }
       },
     );
@@ -75,9 +77,15 @@ class DatabaseService {
             createdAt: DateTime.parse(map['createdAt'] as String),
             updatedAt: DateTime.parse(map['updatedAt'] as String),
             isDeleted: (map['isDeleted'] as int? ?? 0) == 1,
+            hasImage: (map['hasImage'] as int? ?? 0) == 1,
           ),
         )
         .toList();
+  }
+
+  static Future<void> deleteAllEntries() async {
+    final db = await database;
+    await db.delete('entries');
   }
 
   static Future<List<EntryModel>> getEntriesModifiedSince(DateTime date) async {
@@ -96,6 +104,7 @@ class DatabaseService {
             createdAt: DateTime.parse(map['createdAt'] as String),
             updatedAt: DateTime.parse(map['updatedAt'] as String),
             isDeleted: (map['isDeleted'] as int? ?? 0) == 1,
+            hasImage: (map['hasImage'] as int? ?? 0) == 1,
           ),
         )
         .toList();
@@ -109,6 +118,7 @@ class DatabaseService {
       'createdAt': entry.createdAt.toIso8601String(),
       'updatedAt': entry.updatedAt.toIso8601String(),
       'isDeleted': entry.isDeleted ? 1 : 0,
+      'hasImage': entry.hasImage ? 1 : 0,
     });
   }
 
@@ -120,6 +130,7 @@ class DatabaseService {
         'body': entry.body,
         'updatedAt': entry.updatedAt.toIso8601String(),
         'isDeleted': entry.isDeleted ? 1 : 0,
+        'hasImage': entry.hasImage ? 1 : 0,
       },
       where: 'id = ?',
       whereArgs: [entry.id],
@@ -137,13 +148,6 @@ class DatabaseService {
     );
   }
 
-  /// Delete all entries from local database
-  /// WARNING: This permanently removes all local data
-  static Future<void> deleteAllEntries() async {
-    final db = await database;
-    await db.delete('entries');
-  }
-
   /// Bulk insert entries (used for restoring from Firebase)
   /// Efficiently inserts multiple entries in a batch transaction
   static Future<void> bulkInsertEntries(List<EntryModel> entries) async {
@@ -159,6 +163,7 @@ class DatabaseService {
         'createdAt': entry.createdAt.toIso8601String(),
         'updatedAt': entry.updatedAt.toIso8601String(),
         'isDeleted': entry.isDeleted ? 1 : 0,
+        'hasImage': entry.hasImage ? 1 : 0,
       });
     }
 

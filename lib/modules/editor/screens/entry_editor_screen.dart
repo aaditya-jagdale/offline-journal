@@ -35,12 +35,17 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   bool _initialized = false;
   String _lastSavedBody = '';
   File? _coverImageFile;
+  bool isPro = false;
+  final _rc = RevenueCatService.instance;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
     _loadCoverImage();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      isPro = await _rc.isPro();
+    });
   }
 
   Future<void> _loadCoverImage() async {
@@ -270,27 +275,48 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     // Text Editor
                     Padding(
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      child: TextField(
-                        enabled:
-                            (ref.read(isProProvider).value != null &&
-                                ref.read(isProProvider).value!) ||
-                            !widget.entry.createdAt.isBefore(
-                              DateTime(
-                                DateTime.now().year,
-                                DateTime.now().month,
-                                DateTime.now().day,
+                      child: GestureDetector(
+                        onTap:
+                            isPro ||
+                                (ref.read(isProProvider).value != null &&
+                                    ref.read(isProProvider).value!) ||
+                                !widget.entry.createdAt.isBefore(
+                                  DateTime(
+                                    DateTime.now().year,
+                                    DateTime.now().month,
+                                    DateTime.now().day,
+                                  ),
+                                )
+                            ? null
+                            : () {
+                                debugPrint(
+                                  "==========Presenting paywall==========",
+                                );
+                                _rc.presentPaywall();
+                              },
+                        child: TextField(
+                          enabled:
+                              isPro ||
+                              (ref.read(isProProvider).value != null &&
+                                  ref.read(isProProvider).value!) ||
+                              !widget.entry.createdAt.isBefore(
+                                DateTime(
+                                  DateTime.now().year,
+                                  DateTime.now().month,
+                                  DateTime.now().day,
+                                ),
                               ),
-                            ),
-                        controller: _controller,
-                        onChanged: (_) => _onTextChanged(),
-                        maxLines: null,
-                        autofocus: _coverImageFile == null,
-                        style: textStyle,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Start writing...',
+                          controller: _controller,
+                          onChanged: (_) => _onTextChanged(),
+                          maxLines: null,
+                          autofocus: _coverImageFile == null,
+                          style: textStyle,
+                          decoration: const InputDecoration(
+                            border: InputBorder.none,
+                            hintText: 'Start writing...',
+                          ),
+                          textAlignVertical: TextAlignVertical.top,
                         ),
-                        textAlignVertical: TextAlignVertical.top,
                       ),
                     ),
                   ],

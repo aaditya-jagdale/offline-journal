@@ -266,6 +266,84 @@ class AuthProviderService {
     }
   }
 
+  Future<AuthResult> signInWithGoogle(AuthCredential credential) async {
+    try {
+      debugPrint('[AuthService] Starting Google Sign In flow');
+
+      final User? currentUser = _auth.currentUser;
+
+      if (currentUser != null && currentUser.isAnonymous) {
+        debugPrint('[AuthService] Linking anonymous account to Google');
+        try {
+          final linkedCredential = await currentUser.linkWithCredential(
+            credential,
+          );
+          debugPrint(
+            '[AuthService] Successfully linked Google to anonymous account',
+          );
+          return AuthResult.success(linkedCredential.user);
+        } on FirebaseAuthException catch (e) {
+          debugPrint('[AuthService] Linking failed: ${e.code}');
+
+          if (e.code == 'credential-already-in-use') {
+            // The Google account is already linked to another Firebase account
+            // Sign in to that account directly (replaces anonymous session)
+            debugPrint(
+              '[AuthService] Credential already in use, signing in to existing account',
+            );
+            try {
+              final UserCredential userCredential = await _auth
+                  .signInWithCredential(credential);
+              debugPrint(
+                '[AuthService] Successfully signed in to existing Google account',
+              );
+              return AuthResult.success(userCredential.user);
+            } catch (signInError) {
+              debugPrint('[AuthService] Sign in failed: $signInError');
+              return AuthResult.failure(
+                'Unable to sign in with this Google account. Please try again.',
+              );
+            }
+          } else if (e.code == 'email-already-in-use') {
+            return AuthResult.failure(
+              'An account with this email already exists. Please sign in with your existing method.',
+            );
+          } else if (e.code == 'provider-already-linked') {
+            return AuthResult.failure(
+              'This account is already linked to Google',
+            );
+          }
+
+          return AuthResult.failure('Failed to link account: ${e.message}');
+        }
+      } else {
+        debugPrint(
+          '[AuthService] Signing in with Google (no anonymous account)',
+        );
+        try {
+          final UserCredential userCredential = await _auth
+              .signInWithCredential(credential);
+          debugPrint('[AuthService] Successfully signed in with Google');
+          return AuthResult.success(userCredential.user);
+        } on FirebaseAuthException catch (e) {
+          debugPrint('[AuthService] Google sign in error: ${e.code}');
+          if (e.code == 'account-exists-with-different-credential') {
+            return AuthResult.failure(
+              'An account already exists with the same email from a different sign-in method',
+            );
+          } else if (e.code == 'invalid-credential') {
+            return AuthResult.failure('The Google credential is invalid');
+          }
+          return AuthResult.failure('Sign in failed: ${e.message}');
+        }
+      }
+    } catch (e, stack) {
+      debugPrint('[AuthService] Unexpected error in Google Sign In: $e');
+      debugPrint('[AuthService] Stack trace: $stack');
+      return AuthResult.failure('An unexpected error occurred');
+    }
+  }
+
   bool _isValidEmail(String email) {
     final RegExp emailRegex = RegExp(
       r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',

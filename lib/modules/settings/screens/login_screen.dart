@@ -1,10 +1,18 @@
+import 'dart:async';
+import 'dart:developer';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/auth_provider_service.dart';
+import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -85,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Success! Go back to settings
+        RevenueCatService.instance.logIn(result.user!.uid);
         Navigator.pop(context);
       } else {
         // Only show error if it's not a cancellation
@@ -104,9 +112,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _handleGoogleSignIn() {
-    // Void as requested - placeholder for future implementation
-    debugPrint('[LoginScreen] Google Sign In tapped (not implemented)');
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final webClientId = dotenv.env['GOOGLE_CLIENT_ID_WEB'];
+    final iosClientId = dotenv.env['GOOGLE_CLIENT_ID_IOS'];
+    final GoogleSignIn signIn = GoogleSignIn.instance;
+
+    try {
+      unawaited(
+        signIn.initialize(clientId: iosClientId, serverClientId: webClientId),
+      );
+
+      // Perform the sign in
+      final googleAccount = await signIn.authenticate();
+      final googleAuthorization = await googleAccount.authorizationClient
+          .authorizationForScopes([
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+          ]);
+      final googleAuthentication = googleAccount.authentication;
+      final idToken = googleAuthentication.idToken;
+      final accessToken = googleAuthorization!.accessToken;
+
+      if (idToken == null) {
+        throw 'No ID Token found.';
+      }
+
+      final OAuthCredential oauthCredential = OAuthProvider(
+        "google.com",
+      ).credential(idToken: idToken, accessToken: accessToken);
+
+      await AuthProviderService.instance.signInWithGoogle(oauthCredential);
+      Navigator.pop(context);
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -302,7 +353,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: _handleGoogleSignIn,
                           isDark: isDark,
                         ),
-
                         const SizedBox(height: 24),
                       ],
                     ),

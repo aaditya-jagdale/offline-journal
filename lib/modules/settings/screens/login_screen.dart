@@ -401,16 +401,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required VoidCallback? onPressed,
     bool isLoading = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
+    final isDark = ref.read(preferencesProvider).value!.theme == AppTheme.dark;
 
     return SizedBox(
       height: 52,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: theme.primaryColor,
-          foregroundColor: Colors.white,
+          backgroundColor: isDark ? Colors.white : Colors.black,
+          foregroundColor: isDark ? Colors.black : Colors.white,
           disabledBackgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

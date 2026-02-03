@@ -61,6 +61,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
     _typingTimer?.cancel();
     _saveIfNeeded();
     _controller.dispose();
+
     super.dispose();
   }
 
@@ -131,9 +132,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
 
   void _copyEntry() {
     Clipboard.setData(
-      ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
+      // ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
+      ClipboardData(text: masterPrompt),
     );
-    SnackbarService().show(context, 'Copied with secret prompt');
+    SnackbarService().show(context, 'Text Copied');
   }
 
   Future<void> _pickCoverImage() async {
@@ -213,11 +215,15 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       // Premium feature
                       final isPro = await RevenueCatService.instance.isPro();
                       if (!isPro) {
-                        final result = await RevenueCatService.instance
-                            .presentPaywall();
-                        if (result != PaywallResult.purchased) {
-                          // User dismissed paywall - do NOT create entry
-                          return;
+                        try {
+                          final result = await RevenueCatService.instance
+                              .presentPaywall();
+                          if (result != PaywallResult.purchased) {
+                            // User dismissed paywall - do NOT create entry
+                            return;
+                          }
+                        } catch (e) {
+                          print("Error presenting paywall: $e");
                         }
                         _pickCoverImage();
                         return;
@@ -225,7 +231,14 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       _pickCoverImage();
                       return;
                     },
-                    icon: Icon(Icons.add_photo_alternate_outlined),
+                    icon: SvgPicture.asset(
+                      "assets/icons/image_add.svg",
+                      height: 20,
+                      colorFilter: ColorFilter.mode(
+                        theme.colorScheme.onSurface,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                   ),
 
                   IconButton(
@@ -278,34 +291,34 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       child: GestureDetector(
                         onTap:
                             isPro ||
-                                (ref.read(isProProvider).value != null &&
-                                    ref.read(isProProvider).value!) ||
-                                !widget.entry.createdAt.isBefore(
-                                  DateTime(
-                                    DateTime.now().year,
-                                    DateTime.now().month,
-                                    DateTime.now().day,
-                                  ),
-                                )
+                                ((ref.read(isProProvider).value != null &&
+                                        ref.read(isProProvider).value!) ||
+                                    !widget.entry.createdAt.isBefore(
+                                      DateTime(
+                                        DateTime.now().year,
+                                        DateTime.now().month,
+                                        DateTime.now().day,
+                                      ),
+                                    ))
                             ? null
                             : () {
                                 debugPrint(
                                   "==========Presenting paywall==========",
                                 );
-                                _rc.presentPaywall();
+                                _rc.presentPaywallIfNeeded();
                               },
                         child: TextField(
                           enabled:
                               isPro ||
-                              (ref.read(isProProvider).value != null &&
-                                  ref.read(isProProvider).value!) ||
-                              !widget.entry.createdAt.isBefore(
-                                DateTime(
-                                  DateTime.now().year,
-                                  DateTime.now().month,
-                                  DateTime.now().day,
-                                ),
-                              ),
+                              ((ref.read(isProProvider).value != null &&
+                                      ref.read(isProProvider).value!) ||
+                                  !widget.entry.createdAt.isBefore(
+                                    DateTime(
+                                      DateTime.now().year,
+                                      DateTime.now().month,
+                                      DateTime.now().day,
+                                    ),
+                                  )),
                           controller: _controller,
                           onChanged: (_) => _onTextChanged(),
                           maxLines: null,

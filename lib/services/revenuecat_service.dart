@@ -28,11 +28,18 @@ class RevenueCatService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final apiKey = dotenv.env['REVENUECAT_API_KEY'];
+    final apiKey = kDebugMode
+        ? dotenv.env['REVENUECAT_API_KEY_TEST']
+        : Platform.isAndroid
+        ? dotenv.env['REVENUECAT_API_KEY_PROD_ANDROID']!
+        : dotenv.env['REVENUECAT_API_KEY_PROD_IOS'];
+
     if (apiKey == null || apiKey.isEmpty) {
       debugPrint('RevenueCat: API key not found in .env');
       return;
     }
+
+    debugPrint('---------------RevenueCat: API key: $apiKey');
 
     await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
 
@@ -41,7 +48,12 @@ class RevenueCatService {
       config.store = Store.playStore;
     }
 
-    await Purchases.configure(config);
+    try {
+      await Purchases.configure(config);
+    } catch (e) {
+      debugPrint('---------------RevenueCat: Error configuring SDK: $e');
+    }
+
     _isInitialized = true;
 
     // Fetch initial customer info

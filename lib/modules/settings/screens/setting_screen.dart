@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:jrnl/modules/home/screens/splash_screen.dart';
 import 'package:jrnl/modules/settings/screens/login_screen.dart';
 import 'package:jrnl/modules/shared/widgets/custom_progress_indicator.dart';
@@ -16,6 +17,7 @@ import 'package:jrnl/services/database_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 class SettingScreen extends ConsumerStatefulWidget {
   const SettingScreen({super.key});
@@ -171,7 +173,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
       builder: (context) => CupertinoAlertDialog(
         title: const Text('Delete Account?'),
         content: const Text(
-          'This action is irreversible. We will delete your account and all associated data within 7 days from our servers.',
+          'This action is irreversible. If you don\'t login again within 7 days, your account will be deleted.',
         ),
         actions: [
           CupertinoDialogAction(
@@ -227,14 +229,28 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
             children: [
               if (user == null || user.isAnonymous)
                 _SettingsTile(
-                  icon: CupertinoIcons.person_circle,
+                  icon: SvgPicture.asset(
+                    "assets/icons/person.svg",
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                   title: "Sign In",
                   iconColor: Colors.blue,
                   onTap: _signIn,
                 )
               else ...[
                 _SettingsTile(
-                  icon: CupertinoIcons.person_fill,
+                  icon: SvgPicture.asset(
+                    "assets/icons/person.svg",
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                   title: user.email!,
                   iconColor: Colors.blue,
                   trailing: Icon(Icons.logout, size: 20, color: Colors.red),
@@ -275,7 +291,14 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                       false;
 
                   return _SettingsTile(
-                    icon: CupertinoIcons.cloud_upload_fill,
+                    icon: SvgPicture.asset(
+                      "assets/icons/cloud_backup.svg",
+                      height: 20,
+                      colorFilter: ColorFilter.mode(
+                        Colors.white,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                     title: _isBackingUp ? "Backing up..." : "Auto Backup",
                     subtitle: subtitle,
                     iconColor: Colors.purple,
@@ -314,7 +337,14 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
               // Delete local data, refetch all from cloud
               if (kDebugMode)
                 _SettingsTile(
-                  icon: CupertinoIcons.trash,
+                  icon: SvgPicture.asset(
+                    "assets/icons/delete.svg",
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                   title: "Delete Local Data",
                   iconColor: Colors.red,
                   trailing: _isResetting ? CustomProgressIndicator() : null,
@@ -397,19 +427,39 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
             title: "Legal & Support",
             children: [
               _SettingsTile(
-                icon: CupertinoIcons.lock_fill,
+                icon: SvgPicture.asset(
+                  "assets/icons/file_lock.svg",
+                  height: 20,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                ),
                 title: "Privacy Policy",
-                iconColor: Colors.grey,
-                onTap: () {},
+                iconColor: Colors.indigo,
+                onTap: () {
+                  launchUrlString(
+                    "https://sites.google.com/view/jrnl-app/privacy-policy",
+                  );
+                },
               ),
               _SettingsTile(
-                icon: CupertinoIcons.doc_text_fill,
+                icon: SvgPicture.asset(
+                  "assets/icons/file_shield.svg",
+                  height: 20,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                ),
                 title: "Terms of Service",
-                iconColor: Colors.grey,
-                onTap: () {},
+                iconColor: Colors.indigo,
+                onTap: () {
+                  launchUrlString(
+                    "https://sites.google.com/view/jrnl-app/terms-of-service",
+                  );
+                },
               ),
               _SettingsTile(
-                icon: CupertinoIcons.arrow_2_circlepath,
+                icon: SvgPicture.asset(
+                  "assets/icons/card_reload.svg",
+                  height: 20,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                ),
                 title: "Restore Purchases",
                 iconColor: Colors.green,
                 onTap: _restorePurchases,
@@ -418,12 +468,19 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
           ),
 
           // DANGER ZONE
-          if (user != null)
+          if (user != null && !user.isAnonymous)
             _SettingsSection(
               title: "DANGER ZONE",
               children: [
                 _SettingsTile(
-                  icon: CupertinoIcons.trash_fill,
+                  icon: SvgPicture.asset(
+                    "assets/icons/delete.svg",
+                    height: 20,
+                    colorFilter: ColorFilter.mode(
+                      Colors.white,
+                      BlendMode.srcIn,
+                    ),
+                  ),
                   title: "Delete Account",
                   titleColor: Colors.red,
                   iconColor: Colors.red,
@@ -493,7 +550,7 @@ class _SettingsSection extends StatelessWidget {
 }
 
 class _SettingsTile extends StatelessWidget {
-  final IconData icon;
+  final Widget icon;
   final String title;
   final String? subtitle;
   final Color iconColor;
@@ -530,7 +587,7 @@ class _SettingsTile extends StatelessWidget {
                   color: iconColor,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, color: Colors.white, size: 18),
+                child: icon,
               ),
               const SizedBox(width: 12),
               Expanded(

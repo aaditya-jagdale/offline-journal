@@ -7,6 +7,8 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:jrnl/modules/home/screens/splash_screen.dart';
+import 'package:jrnl/modules/shared/widgets/transitions.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/auth_provider_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -63,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result.success) {
         // Success! Go back to settings
-        Navigator.pop(context);
+        clearAllAndPush(context, const SplashScreen());
       } else {
         // Show error
         setState(() {
@@ -91,7 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        Navigator.pop(context);
+        clearAllAndPush(context, const SplashScreen());
       } else {
         // Only show error if it's not a cancellation
         if (result.errorMessage != 'Sign in canceled') {
@@ -146,7 +148,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final result = await AuthProviderService.instance.signInWithGoogle(
         oauthCredential,
       );
-      Navigator.pop(context);
+      clearAllAndPush(context, const SplashScreen());
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -375,7 +377,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Colors.black,
                   ),
                   onPressed: () {
-                    Navigator.pop(context);
+                    clearAllAndPush(context, const SplashScreen());
                   },
                   icon: const Icon(Icons.close),
                 ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
+
 import 'package:jrnl/modules/editor/screens/entry_editor_screen.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/modules/home/widgets/entry_card.dart';
@@ -12,6 +13,7 @@ import 'package:jrnl/riverpod/backup_rvpd.dart';
 import 'package:jrnl/services/analytics_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
+import 'package:jrnl/services/update_service.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:purchases_ui_flutter/purchases_ui_flutter.dart';
 
@@ -27,7 +29,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   void setVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
-
     String version = packageInfo.version;
     String buildNumber = packageInfo.buildNumber;
 
@@ -45,6 +46,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       await ref.read(entriesProvider.notifier).getEntries();
 
       await _performAutoBackup();
+
+      if (mounted) {
+        UpdateService.instance.checkForUpdate(context);
+      }
     });
   }
 

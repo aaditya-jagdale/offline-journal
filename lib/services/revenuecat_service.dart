@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
@@ -18,8 +19,10 @@ class RevenueCatService {
   static const String proEntitlementId = 'pro';
 
   /// Product identifiers
-  static const String jrnlLifetimeId = 'JRNL_lifetime';
-  static const String lifetimeId = 'lifetime';
+  final String jrnlLifetimeId = Platform.isIOS
+      ? 'JRNL_lifetime'
+      : "jrnl_lifetime_1";
+  final String lifetimeId = 'lifetime';
 
   /// Maximum number of free entries allowed for non-pro users.
   static const int freeEntryLimit = 2;
@@ -28,7 +31,7 @@ class RevenueCatService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final apiKey = kDebugMode
+    final apiKey = !kDebugMode
         ? dotenv.env['REVENUECAT_API_KEY_TEST']
         : Platform.isAndroid
         ? dotenv.env['REVENUECAT_API_KEY_PROD_ANDROID']!
@@ -108,12 +111,16 @@ class RevenueCatService {
   /// Present the paywall.
   /// Returns the result of the paywall presentation.
   Future<PaywallResult> presentPaywall() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    await logIn(uid);
     return await RevenueCatUI.presentPaywall(displayCloseButton: false);
   }
 
   /// Present the paywall only if the user does not have the pro entitlement.
   /// Returns the result of the paywall presentation.
   Future<PaywallResult> presentPaywallIfNeeded() async {
+    final uid = FirebaseAuth.instance.currentUser!.uid;
+    await logIn(uid);
     return await RevenueCatUI.presentPaywallIfNeeded(proEntitlementId);
   }
 

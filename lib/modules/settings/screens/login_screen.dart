@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -10,7 +9,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/auth_provider_service.dart';
-import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -93,7 +91,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        RevenueCatService.instance.logIn(result.user!.uid);
         Navigator.pop(context);
       } else {
         // Only show error if it's not a cancellation
@@ -146,7 +143,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         "google.com",
       ).credential(idToken: idToken, accessToken: accessToken);
 
-      await AuthProviderService.instance.signInWithGoogle(oauthCredential);
+      final result = await AuthProviderService.instance.signInWithGoogle(
+        oauthCredential,
+      );
       Navigator.pop(context);
     } catch (e) {
       setState(() {

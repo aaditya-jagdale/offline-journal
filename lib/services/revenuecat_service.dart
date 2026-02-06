@@ -42,8 +42,6 @@ class RevenueCatService {
       return;
     }
 
-    debugPrint('---------------RevenueCat: API key: $apiKey');
-
     await Purchases.setLogLevel(kDebugMode ? LogLevel.debug : LogLevel.error);
 
     final config = PurchasesConfiguration(apiKey);

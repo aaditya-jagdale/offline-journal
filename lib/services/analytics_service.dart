@@ -18,7 +18,6 @@ class AnalyticsService {
   }) async {
     try {
       await _analytics.logEvent(name: name, parameters: parameters);
-      debugPrint("----------------Logging event: $name");
     } catch (e) {
       debugPrint("----------------Logging event failed: $e");
     }

@@ -17,6 +17,7 @@ import 'package:jrnl/services/database_service.dart';
 import 'package:jrnl/services/revenuecat_service.dart';
 import 'package:jrnl/services/sync_service.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 class SettingScreen extends ConsumerStatefulWidget {
@@ -29,6 +30,17 @@ class SettingScreen extends ConsumerStatefulWidget {
 class _SettingScreenState extends ConsumerState<SettingScreen> {
   bool _isBackingUp = false;
   bool _isResetting = false;
+  String _appVersion = 'xyz';
+
+  void setAppVersion() {
+    PackageInfo.fromPlatform().then((packageInfo) {
+      setState(() {
+        final version = packageInfo.version;
+        final buildNumber = packageInfo.buildNumber;
+        _appVersion = '$version + $buildNumber';
+      });
+    });
+  }
 
   void _handleBackup() async {
     setState(() => _isBackingUp = true);
@@ -202,6 +214,12 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
         }
       }
     }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    setAppVersion();
   }
 
   @override
@@ -490,6 +508,10 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
               ],
             ),
 
+          const SizedBox(height: 10),
+          Center(
+            child: Text(_appVersion, style: TextStyle(color: Colors.grey[600])),
+          ),
           const SizedBox(height: 40),
         ],
       ),

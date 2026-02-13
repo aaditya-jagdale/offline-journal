@@ -31,9 +31,11 @@ class RevenueCatService {
   Future<void> initialize() async {
     if (_isInitialized) return;
 
-    final apiKey = !kDebugMode
-        ? dotenv.env['REVENUECAT_API_KEY_TEST']
-        : Platform.isAndroid
+    final apiKey =
+        // !kDebugMode
+        //     ? dotenv.env['REVENUECAT_API_KEY_TEST']
+        //     :
+        Platform.isAndroid
         ? dotenv.env['REVENUECAT_API_KEY_PROD_ANDROID']!
         : dotenv.env['REVENUECAT_API_KEY_PROD_IOS'];
 

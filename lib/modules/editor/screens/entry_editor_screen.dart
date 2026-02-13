@@ -85,7 +85,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
 
     // Reset auto-save timer
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(seconds: 2), _saveIfNeeded);
+    _autoSaveTimer = Timer(const Duration(seconds: 1), _saveIfNeeded);
   }
 
   void _saveIfNeeded() {
@@ -280,62 +280,74 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   ),
                 ],
               ),
-              body: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Cover Image Section
-                    if (_coverImageFile != null) _buildCoverImageSection(theme),
-                    // Text Editor
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      child: GestureDetector(
-                        onTap:
-                            isPro ||
-                                ((ref.read(isProProvider).value != null &&
-                                        ref.read(isProProvider).value!) ||
-                                    !widget.entry.createdAt.isBefore(
-                                      DateTime(
-                                        DateTime.now().year,
-                                        DateTime.now().month,
-                                        DateTime.now().day,
-                                      ),
-                                    ))
-                            ? null
-                            : () {
-                                debugPrint(
-                                  "==========Presenting paywall==========",
-                                );
-                                _rc.presentPaywallIfNeeded();
-                              },
-                        child: TextField(
-                          enabled:
-                              isPro ||
-                              ((ref.read(isProProvider).value != null &&
-                                      ref.read(isProProvider).value!) ||
-                                  !widget.entry.createdAt.isBefore(
-                                    DateTime(
-                                      DateTime.now().year,
-                                      DateTime.now().month,
-                                      DateTime.now().day,
-                                    ),
-                                  )),
-                          controller: _controller,
-                          onChanged: (_) => _onTextChanged(),
-                          maxLines: null,
-                          autofocus: _coverImageFile == null,
-                          style: textStyle,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            hintText: 'Start writing...',
+              body: Stack(
+                children: [
+                  Positioned.fill(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Cover Image Section
+                          if (_coverImageFile != null)
+                            _buildCoverImageSection(theme),
+                          // Text Editor
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                            child: GestureDetector(
+                              onTap:
+                                  isPro ||
+                                      ((ref.read(isProProvider).value != null &&
+                                              ref.read(isProProvider).value!) ||
+                                          !widget.entry.createdAt.isBefore(
+                                            DateTime(
+                                              DateTime.now().year,
+                                              DateTime.now().month,
+                                              DateTime.now().day,
+                                            ),
+                                          ))
+                                  ? null
+                                  : () {
+                                      debugPrint(
+                                        "==========Presenting paywall==========",
+                                      );
+                                      _rc.presentPaywallIfNeeded();
+                                    },
+                              child: TextField(
+                                enabled:
+                                    isPro ||
+                                    ((ref.read(isProProvider).value != null &&
+                                            ref.read(isProProvider).value!) ||
+                                        !widget.entry.createdAt.isBefore(
+                                          DateTime(
+                                            DateTime.now().year,
+                                            DateTime.now().month,
+                                            DateTime.now().day,
+                                          ),
+                                        )),
+                                controller: _controller,
+                                onChanged: (_) => _onTextChanged(),
+                                maxLines: null,
+                                autofocus: _coverImageFile == null,
+                                style: textStyle,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Start writing...',
+                                ),
+                                textAlignVertical: TextAlignVertical.top,
+                              ),
+                            ),
                           ),
-                          textAlignVertical: TextAlignVertical.top,
-                        ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: DynamicBottomToolbar(isTyping: _isTyping),
+                  ),
+                ],
               ),
-              bottomNavigationBar: DynamicBottomToolbar(isTyping: _isTyping),
             );
           },
           loading: () =>

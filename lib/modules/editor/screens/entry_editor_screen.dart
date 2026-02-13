@@ -35,12 +35,17 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   bool _initialized = false;
   String _lastSavedBody = '';
   File? _coverImageFile;
+  bool isPro = false;
+  final _rc = RevenueCatService.instance;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
     _loadCoverImage();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      isPro = await _rc.isPro();
+    });
   }
 
   Future<void> _loadCoverImage() async {
@@ -56,6 +61,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
     _typingTimer?.cancel();
     _saveIfNeeded();
     _controller.dispose();
+
     super.dispose();
   }
 
@@ -79,7 +85,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
 
     // Reset auto-save timer
     _autoSaveTimer?.cancel();
-    _autoSaveTimer = Timer(const Duration(seconds: 2), _saveIfNeeded);
+    _autoSaveTimer = Timer(const Duration(seconds: 1), _saveIfNeeded);
   }
 
   void _saveIfNeeded() {
@@ -126,9 +132,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
 
   void _copyEntry() {
     Clipboard.setData(
-      ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
+      // ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
+      ClipboardData(text: masterPrompt),
     );
-    SnackbarService().show(context, 'Copied with secret prompt');
+    SnackbarService().show(context, 'Text Copied');
   }
 
   Future<void> _pickCoverImage() async {
@@ -208,11 +215,15 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       // Premium feature
                       final isPro = await RevenueCatService.instance.isPro();
                       if (!isPro) {
-                        final result = await RevenueCatService.instance
-                            .presentPaywall();
-                        if (result != PaywallResult.purchased) {
-                          // User dismissed paywall - do NOT create entry
-                          return;
+                        try {
+                          final result = await RevenueCatService.instance
+                              .presentPaywall();
+                          if (result != PaywallResult.purchased) {
+                            // User dismissed paywall - do NOT create entry
+                            return;
+                          }
+                        } catch (e) {
+                          print("Error presenting paywall: $e");
                         }
                         _pickCoverImage();
                         return;
@@ -220,7 +231,14 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       _pickCoverImage();
                       return;
                     },
-                    icon: Icon(Icons.add_photo_alternate_outlined),
+                    icon: SvgPicture.asset(
+                      "assets/icons/image_add.svg",
+                      height: 20,
+                      colorFilter: ColorFilter.mode(
+                        theme.colorScheme.onSurface,
+                        BlendMode.srcIn,
+                      ),
+                    ),
                   ),
 
                   IconButton(
@@ -262,41 +280,74 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                   ),
                 ],
               ),
-              body: SingleChildScrollView(
-                child: Column(
-                  children: [
-                    // Cover Image Section
-                    if (_coverImageFile != null) _buildCoverImageSection(theme),
-                    // Text Editor
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      child: TextField(
-                        enabled:
-                            (ref.read(isProProvider).value != null &&
-                                ref.read(isProProvider).value!) ||
-                            !widget.entry.createdAt.isBefore(
-                              DateTime(
-                                DateTime.now().year,
-                                DateTime.now().month,
-                                DateTime.now().day,
+              body: Stack(
+                children: [
+                  Positioned.fill(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          // Cover Image Section
+                          if (_coverImageFile != null)
+                            _buildCoverImageSection(theme),
+                          // Text Editor
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                            child: GestureDetector(
+                              onTap:
+                                  isPro ||
+                                      ((ref.read(isProProvider).value != null &&
+                                              ref.read(isProProvider).value!) ||
+                                          !widget.entry.createdAt.isBefore(
+                                            DateTime(
+                                              DateTime.now().year,
+                                              DateTime.now().month,
+                                              DateTime.now().day,
+                                            ),
+                                          ))
+                                  ? null
+                                  : () {
+                                      debugPrint(
+                                        "==========Presenting paywall==========",
+                                      );
+                                      _rc.presentPaywallIfNeeded();
+                                    },
+                              child: TextField(
+                                enabled:
+                                    isPro ||
+                                    ((ref.read(isProProvider).value != null &&
+                                            ref.read(isProProvider).value!) ||
+                                        !widget.entry.createdAt.isBefore(
+                                          DateTime(
+                                            DateTime.now().year,
+                                            DateTime.now().month,
+                                            DateTime.now().day,
+                                          ),
+                                        )),
+                                controller: _controller,
+                                onChanged: (_) => _onTextChanged(),
+                                maxLines: null,
+                                autofocus: _coverImageFile == null,
+                                style: textStyle,
+                                decoration: const InputDecoration(
+                                  border: InputBorder.none,
+                                  hintText: 'Start writing...',
+                                ),
+                                textAlignVertical: TextAlignVertical.top,
                               ),
                             ),
-                        controller: _controller,
-                        onChanged: (_) => _onTextChanged(),
-                        maxLines: null,
-                        autofocus: _coverImageFile == null,
-                        style: textStyle,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          hintText: 'Start writing...',
-                        ),
-                        textAlignVertical: TextAlignVertical.top,
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: DynamicBottomToolbar(isTyping: _isTyping),
+                  ),
+                ],
               ),
-              bottomNavigationBar: DynamicBottomToolbar(isTyping: _isTyping),
             );
           },
           loading: () =>

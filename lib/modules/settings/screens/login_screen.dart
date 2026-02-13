@@ -1,10 +1,18 @@
+import 'dart:async';
+
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:jrnl/modules/home/screens/splash_screen.dart';
+import 'package:jrnl/modules/shared/widgets/transitions.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/auth_provider_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -57,7 +65,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
       if (result.success) {
         // Success! Go back to settings
-        Navigator.pop(context);
+        clearAllAndPush(context, const SplashScreen());
       } else {
         // Show error
         setState(() {
@@ -85,8 +93,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
-        // Success! Go back to settings
-        Navigator.pop(context);
+        clearAllAndPush(context, const SplashScreen());
       } else {
         // Only show error if it's not a cancellation
         if (result.errorMessage != 'Sign in canceled') {
@@ -104,9 +111,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _handleGoogleSignIn() {
-    // Void as requested - placeholder for future implementation
-    debugPrint('[LoginScreen] Google Sign In tapped (not implemented)');
+  Future<void> _handleGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    final webClientId = dotenv.env['GOOGLE_CLIENT_ID_WEB'];
+    final iosClientId = dotenv.env['GOOGLE_CLIENT_ID_IOS'];
+    final GoogleSignIn signIn = GoogleSignIn.instance;
+
+    try {
+      unawaited(
+        signIn.initialize(clientId: iosClientId, serverClientId: webClientId),
+      );
+
+      // Perform the sign in
+      final googleAccount = await signIn.authenticate();
+      final googleAuthorization = await googleAccount.authorizationClient
+          .authorizationForScopes([
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/userinfo.profile",
+          ]);
+      final googleAuthentication = googleAccount.authentication;
+      final idToken = googleAuthentication.idToken;
+      final accessToken = googleAuthorization!.accessToken;
+
+      if (idToken == null) {
+        throw 'No ID Token found.';
+      }
+
+      final OAuthCredential oauthCredential = OAuthProvider(
+        "google.com",
+      ).credential(idToken: idToken, accessToken: accessToken);
+
+      final result = await AuthProviderService.instance.signInWithGoogle(
+        oauthCredential,
+      );
+      clearAllAndPush(context, const SplashScreen());
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+        _isLoading = false;
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
   @override
@@ -302,7 +354,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: _handleGoogleSignIn,
                           isDark: isDark,
                         ),
-
                         const SizedBox(height: 24),
                       ],
                     ),
@@ -326,7 +377,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Colors.black,
                   ),
                   onPressed: () {
-                    Navigator.pop(context);
+                    clearAllAndPush(context, const SplashScreen());
                   },
                   icon: const Icon(Icons.close),
                 ),
@@ -401,16 +452,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required VoidCallback? onPressed,
     bool isLoading = false,
   }) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final theme = Theme.of(context);
+    final isDark = ref.read(preferencesProvider).value!.theme == AppTheme.dark;
 
     return SizedBox(
       height: 52,
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: theme.primaryColor,
-          foregroundColor: Colors.white,
+          backgroundColor: isDark ? Colors.white : Colors.black,
+          foregroundColor: isDark ? Colors.black : Colors.white,
           disabledBackgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

@@ -59,7 +59,6 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   void dispose() {
     _autoSaveTimer?.cancel();
     _typingTimer?.cancel();
-    _saveIfNeeded();
     _controller.dispose();
 
     super.dispose();
@@ -200,101 +199,130 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
               prefs.fontSize,
             ).copyWith(color: theme.colorScheme.onSurface);
 
-            return Scaffold(
-              appBar: AppBar(
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back),
-                  onPressed: () {
-                    _saveIfNeeded();
-                    Navigator.pop(context);
-                  },
-                ),
-                actions: [
-                  IconButton(
-                    onPressed: () async {
-                      // Premium feature
-                      final isPro = await RevenueCatService.instance.isPro();
-                      if (!isPro) {
-                        try {
-                          final result = await RevenueCatService.instance
-                              .presentPaywall();
-                          if (result != PaywallResult.purchased) {
-                            // User dismissed paywall - do NOT create entry
-                            return;
+            return PopScope(
+              canPop: false,
+              onPopInvokedWithResult: (didPop, result) {
+                if (didPop) return;
+                _saveIfNeeded();
+                Navigator.pop(context);
+              },
+              child: Scaffold(
+                appBar: AppBar(
+                  leading: IconButton(
+                    icon: const Icon(Icons.arrow_back),
+                    onPressed: () {
+                      _saveIfNeeded();
+                      Navigator.pop(context);
+                    },
+                  ),
+                  actions: [
+                    IconButton(
+                      onPressed: () async {
+                        // Premium feature
+                        final isPro = await RevenueCatService.instance.isPro();
+                        if (!isPro) {
+                          try {
+                            final result = await RevenueCatService.instance
+                                .presentPaywall();
+                            if (result != PaywallResult.purchased) {
+                              // User dismissed paywall - do NOT create entry
+                              return;
+                            }
+                          } catch (e) {
+                            print("Error presenting paywall: $e");
                           }
-                        } catch (e) {
-                          print("Error presenting paywall: $e");
+                          _pickCoverImage();
+                          return;
                         }
                         _pickCoverImage();
                         return;
-                      }
-                      _pickCoverImage();
-                      return;
-                    },
-                    icon: SvgPicture.asset(
-                      "assets/icons/image_add.svg",
-                      height: 20,
-                      colorFilter: ColorFilter.mode(
-                        theme.colorScheme.onSurface,
-                        BlendMode.srcIn,
+                      },
+                      icon: SvgPicture.asset(
+                        "assets/icons/image_add.svg",
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          theme.colorScheme.onSurface,
+                          BlendMode.srcIn,
+                        ),
                       ),
                     ),
-                  ),
 
-                  IconButton(
-                    icon:
-                        ref.read(preferencesProvider).value?.theme ==
-                            AppTheme.dark
-                        ? Icon(Icons.light_mode_outlined)
-                        : Icon(Icons.dark_mode_outlined),
-                    onPressed: () {
-                      final currentTheme = prefs.theme;
-                      final isLight = currentTheme == AppTheme.light;
+                    IconButton(
+                      icon:
+                          ref.read(preferencesProvider).value?.theme ==
+                              AppTheme.dark
+                          ? Icon(Icons.light_mode_outlined)
+                          : Icon(Icons.dark_mode_outlined),
+                      onPressed: () {
+                        final currentTheme = prefs.theme;
+                        final isLight = currentTheme == AppTheme.light;
 
-                      ref
-                          .read(preferencesProvider.notifier)
-                          .setTheme(isLight ? AppTheme.dark : AppTheme.light);
-                    },
-                  ),
-                  IconButton(
-                    icon: SvgPicture.asset(
-                      "assets/icons/copy.svg",
-                      height: 20,
-                      colorFilter: ColorFilter.mode(
-                        theme.colorScheme.onSurface,
-                        BlendMode.srcIn,
-                      ),
+                        ref
+                            .read(preferencesProvider.notifier)
+                            .setTheme(isLight ? AppTheme.dark : AppTheme.light);
+                      },
                     ),
-                    onPressed: _copyEntry,
-                  ),
-                  IconButton(
-                    icon: SvgPicture.asset(
-                      "assets/icons/delete.svg",
-                      height: 20,
-                      colorFilter: ColorFilter.mode(
-                        theme.colorScheme.onSurface,
-                        BlendMode.srcIn,
+                    IconButton(
+                      icon: SvgPicture.asset(
+                        "assets/icons/copy.svg",
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          theme.colorScheme.onSurface,
+                          BlendMode.srcIn,
+                        ),
                       ),
+                      onPressed: _copyEntry,
                     ),
-                    onPressed: _deleteEntry,
-                  ),
-                ],
-              ),
-              body: Stack(
-                children: [
-                  Positioned.fill(
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          // Cover Image Section
-                          if (_coverImageFile != null)
-                            _buildCoverImageSection(theme),
-                          // Text Editor
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                            child: GestureDetector(
-                              onTap:
-                                  isPro ||
+                    IconButton(
+                      icon: SvgPicture.asset(
+                        "assets/icons/delete.svg",
+                        height: 20,
+                        colorFilter: ColorFilter.mode(
+                          theme.colorScheme.onSurface,
+                          BlendMode.srcIn,
+                        ),
+                      ),
+                      onPressed: _deleteEntry,
+                    ),
+                  ],
+                ),
+                body: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          children: [
+                            // Cover Image Section
+                            if (_coverImageFile != null)
+                              _buildCoverImageSection(theme),
+                            // Text Editor
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+                              child: GestureDetector(
+                                onTap:
+                                    isPro ||
+                                        ((ref.read(isProProvider).value !=
+                                                    null &&
+                                                ref
+                                                    .read(isProProvider)
+                                                    .value!) ||
+                                            !widget.entry.createdAt.isBefore(
+                                              DateTime(
+                                                DateTime.now().year,
+                                                DateTime.now().month,
+                                                DateTime.now().day,
+                                              ),
+                                            ))
+                                    ? null
+                                    : () {
+                                        debugPrint(
+                                          "==========Presenting paywall==========",
+                                        );
+                                        _rc.presentPaywallIfNeeded();
+                                      },
+                                child: TextField(
+                                  enabled:
+                                      isPro ||
                                       ((ref.read(isProProvider).value != null &&
                                               ref.read(isProProvider).value!) ||
                                           !widget.entry.createdAt.isBefore(
@@ -303,50 +331,32 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                                               DateTime.now().month,
                                               DateTime.now().day,
                                             ),
-                                          ))
-                                  ? null
-                                  : () {
-                                      debugPrint(
-                                        "==========Presenting paywall==========",
-                                      );
-                                      _rc.presentPaywallIfNeeded();
-                                    },
-                              child: TextField(
-                                enabled:
-                                    isPro ||
-                                    ((ref.read(isProProvider).value != null &&
-                                            ref.read(isProProvider).value!) ||
-                                        !widget.entry.createdAt.isBefore(
-                                          DateTime(
-                                            DateTime.now().year,
-                                            DateTime.now().month,
-                                            DateTime.now().day,
-                                          ),
-                                        )),
-                                controller: _controller,
-                                onChanged: (_) => _onTextChanged(),
-                                maxLines: null,
-                                autofocus: _coverImageFile == null,
-                                style: textStyle,
-                                decoration: const InputDecoration(
-                                  border: InputBorder.none,
-                                  hintText: 'Start writing...',
+                                          )),
+                                  controller: _controller,
+                                  onChanged: (_) => _onTextChanged(),
+                                  maxLines: null,
+                                  autofocus: _coverImageFile == null,
+                                  style: textStyle,
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    hintText: 'Start writing...',
+                                  ),
+                                  textAlignVertical: TextAlignVertical.top,
                                 ),
-                                textAlignVertical: TextAlignVertical.top,
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: DynamicBottomToolbar(isTyping: _isTyping),
-                  ),
-                ],
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      child: DynamicBottomToolbar(isTyping: _isTyping),
+                    ),
+                  ],
+                ),
               ),
             );
           },

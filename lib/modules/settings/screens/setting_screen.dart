@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
@@ -109,6 +111,8 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
   }
 
   void _signIn() async {
+    log('User ID: ${FirebaseAuth.instance.currentUser?.uid ?? 'No user'}');
+
     rightSlideTransition(
       context,
       const LoginScreen(),

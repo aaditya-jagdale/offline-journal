@@ -11,6 +11,7 @@ import 'package:jrnl/modules/home/screens/splash_screen.dart';
 import 'package:jrnl/modules/shared/widgets/transitions.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/services/auth_provider_service.dart';
+import 'package:jrnl/services/sync_service.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -64,6 +65,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
+        // Run initial sync after logging in
+        await SyncService.instance.handleInitialSync(result.isNewUser);
+
         // Success! Go back to settings
         clearAllAndPush(context, const SplashScreen());
       } else {
@@ -93,6 +97,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (!mounted) return;
 
       if (result.success) {
+        // Run initial sync after logging in
+        await SyncService.instance.handleInitialSync(result.isNewUser);
+
         clearAllAndPush(context, const SplashScreen());
       } else {
         // Only show error if it's not a cancellation
@@ -148,6 +155,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final result = await AuthProviderService.instance.signInWithGoogle(
         oauthCredential,
       );
+
+      if (result.success) {
+        // Run initial sync after logging in
+        await SyncService.instance.handleInitialSync(result.isNewUser);
+      }
+
       clearAllAndPush(context, const SplashScreen());
     } catch (e) {
       setState(() {

@@ -30,13 +30,13 @@ class EntryEditorScreen extends ConsumerStatefulWidget {
 class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   late TextEditingController _controller;
   Timer? _autoSaveTimer;
-  Timer? _typingTimer;
   bool _isTyping = false;
   bool _initialized = false;
   String _lastSavedBody = '';
   File? _coverImageFile;
   bool isPro = false;
   final _rc = RevenueCatService.instance;
+  bool _isToolbarClosed = false;
 
   @override
   void initState() {
@@ -58,7 +58,6 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   @override
   void dispose() {
     _autoSaveTimer?.cancel();
-    _typingTimer?.cancel();
     _controller.dispose();
 
     super.dispose();
@@ -75,12 +74,6 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   void _onTextChanged() {
     // Mark as typing
     setState(() => _isTyping = true);
-
-    // Reset typing timer (for toolbar visibility)
-    _typingTimer?.cancel();
-    _typingTimer = Timer(const Duration(seconds: 1), () {
-      if (mounted) setState(() => _isTyping = false);
-    });
 
     // Reset auto-save timer
     _autoSaveTimer?.cancel();
@@ -130,10 +123,7 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   }
 
   void _copyEntry() {
-    Clipboard.setData(
-      // ClipboardData(text: "$masterPrompt\n\n${_controller.text}"),
-      ClipboardData(text: masterPrompt),
-    );
+    Clipboard.setData(ClipboardData(text: _controller.text));
     SnackbarService().show(context, 'Text Copied');
   }
 
@@ -251,8 +241,8 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       icon:
                           ref.read(preferencesProvider).value?.theme ==
                               AppTheme.dark
-                          ? Icon(Icons.light_mode_outlined)
-                          : Icon(Icons.dark_mode_outlined),
+                          ? const Icon(Icons.light_mode_outlined)
+                          : const Icon(Icons.dark_mode_outlined),
                       onPressed: () {
                         final currentTheme = prefs.theme;
                         final isLight = currentTheme == AppTheme.light;
@@ -286,9 +276,9 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     ),
                   ],
                 ),
-                body: Stack(
+                body: Column(
                   children: [
-                    Positioned.fill(
+                    Expanded(
                       child: SingleChildScrollView(
                         child: Column(
                           children: [
@@ -349,11 +339,13 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                         ),
                       ),
                     ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: DynamicBottomToolbar(isTyping: _isTyping),
+                    DynamicBottomToolbar(
+                      isTyping: _isTyping || _isToolbarClosed,
+                      onToggle: () {
+                        setState(() {
+                          _isToolbarClosed = !_isToolbarClosed;
+                        });
+                      },
                     ),
                   ],
                 ),

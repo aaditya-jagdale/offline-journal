@@ -6,10 +6,16 @@ class AuthResult {
   final bool success;
   final String? errorMessage;
   final User? user;
+  final bool isNewUser;
 
-  AuthResult.success(this.user) : success = true, errorMessage = null;
+  AuthResult.success(this.user, {this.isNewUser = false})
+    : success = true,
+      errorMessage = null;
 
-  AuthResult.failure(this.errorMessage) : success = false, user = null;
+  AuthResult.failure(this.errorMessage)
+    : success = false,
+      user = null,
+      isNewUser = false;
 }
 
 class AuthProviderService {
@@ -63,7 +69,10 @@ class AuthProviderService {
           debugPrint(
             '[AuthService] Successfully linked Apple to anonymous account',
           );
-          return AuthResult.success(linkedCredential.user);
+          return AuthResult.success(
+            linkedCredential.user,
+            isNewUser: linkedCredential.additionalUserInfo?.isNewUser ?? false,
+          );
         } on FirebaseAuthException catch (e) {
           debugPrint('[AuthService] Linking failed: ${e.code}');
 
@@ -79,7 +88,11 @@ class AuthProviderService {
               debugPrint(
                 '[AuthService] Successfully signed in to existing Apple account',
               );
-              return AuthResult.success(userCredential.user);
+              return AuthResult.success(
+                userCredential.user,
+                isNewUser:
+                    userCredential.additionalUserInfo?.isNewUser ?? false,
+              );
             } catch (signInError) {
               debugPrint('[AuthService] Sign in failed: $signInError');
               return AuthResult.failure(
@@ -106,7 +119,10 @@ class AuthProviderService {
           final UserCredential userCredential = await _auth
               .signInWithCredential(oauthCredential);
           debugPrint('[AuthService] Successfully signed in with Apple');
-          return AuthResult.success(userCredential.user);
+          return AuthResult.success(
+            userCredential.user,
+            isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+          );
         } on FirebaseAuthException catch (e) {
           debugPrint('[AuthService] Apple sign in error: ${e.code}');
           if (e.code == 'account-exists-with-different-credential') {
@@ -149,7 +165,10 @@ class AuthProviderService {
             .signInWithEmailAndPassword(email: email, password: password);
 
         debugPrint('[AuthService] Successfully signed in with email/password');
-        return AuthResult.success(userCredential.user);
+        return AuthResult.success(
+          userCredential.user,
+          isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+        );
       } on FirebaseAuthException catch (e) {
         if (e.code == 'user-not-found') {
           debugPrint('[AuthService] User not found, creating new account');
@@ -204,7 +223,10 @@ class AuthProviderService {
           debugPrint(
             '[AuthService] Successfully linked email/password to anonymous account',
           );
-          return AuthResult.success(linkedCredential.user);
+          return AuthResult.success(
+            linkedCredential.user,
+            isNewUser: linkedCredential.additionalUserInfo?.isNewUser ?? false,
+          );
         } on FirebaseAuthException catch (e) {
           debugPrint('[AuthService] Linking failed: ${e.code}');
 
@@ -224,7 +246,11 @@ class AuthProviderService {
               debugPrint(
                 '[AuthService] Successfully signed in to existing email account',
               );
-              return AuthResult.success(userCredential.user);
+              return AuthResult.success(
+                userCredential.user,
+                isNewUser:
+                    userCredential.additionalUserInfo?.isNewUser ?? false,
+              );
             } catch (signInError) {
               debugPrint('[AuthService] Sign in failed: $signInError');
               return AuthResult.failure(
@@ -243,7 +269,10 @@ class AuthProviderService {
           debugPrint(
             '[AuthService] Successfully created email/password account',
           );
-          return AuthResult.success(userCredential.user);
+          return AuthResult.success(
+            userCredential.user,
+            isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+          );
         } on FirebaseAuthException catch (e) {
           debugPrint('[AuthService] Account creation error: ${e.code}');
 
@@ -270,72 +299,54 @@ class AuthProviderService {
     try {
       debugPrint('[AuthService] Starting Google Sign In flow');
 
-      final User? currentUser = _auth.currentUser;
-
-      if (currentUser != null && currentUser.isAnonymous) {
-        debugPrint('[AuthService] Linking anonymous account to Google');
-        try {
-          final linkedCredential = await currentUser.linkWithCredential(
-            credential,
-          );
-          debugPrint(
-            '[AuthService] Successfully linked Google to anonymous account',
-          );
-          return AuthResult.success(linkedCredential.user);
-        } on FirebaseAuthException catch (e) {
-          debugPrint('[AuthService] Linking failed: ${e.code}');
-
-          if (e.code == 'credential-already-in-use') {
-            // The Google account is already linked to another Firebase account
-            // Sign in to that account directly (replaces anonymous session)
-            debugPrint(
-              '[AuthService] Credential already in use, signing in to existing account',
-            );
-            try {
-              final UserCredential userCredential = await _auth
-                  .signInWithCredential(credential);
-              debugPrint(
-                '[AuthService] Successfully signed in to existing Google account',
-              );
-              return AuthResult.success(userCredential.user);
-            } catch (signInError) {
-              debugPrint('[AuthService] Sign in failed: $signInError');
-              return AuthResult.failure(
-                'Unable to sign in with this Google account. Please try again.',
-              );
-            }
-          } else if (e.code == 'email-already-in-use') {
-            return AuthResult.failure(
-              'An account with this email already exists. Please sign in with your existing method.',
-            );
-          } else if (e.code == 'provider-already-linked') {
-            return AuthResult.failure(
-              'This account is already linked to Google',
-            );
-          }
-
-          return AuthResult.failure('Failed to link account: ${e.message}');
-        }
-      } else {
-        debugPrint(
-          '[AuthService] Signing in with Google (no anonymous account)',
+      final User currentUser = _auth.currentUser!;
+      debugPrint('[AuthService] Linking anonymous account to Google');
+      try {
+        final linkedCredential = await currentUser.linkWithCredential(
+          credential,
         );
-        try {
-          final UserCredential userCredential = await _auth
-              .signInWithCredential(credential);
-          debugPrint('[AuthService] Successfully signed in with Google');
-          return AuthResult.success(userCredential.user);
-        } on FirebaseAuthException catch (e) {
-          debugPrint('[AuthService] Google sign in error: ${e.code}');
-          if (e.code == 'account-exists-with-different-credential') {
-            return AuthResult.failure(
-              'An account already exists with the same email from a different sign-in method',
+        debugPrint(
+          '[AuthService] Successfully linked Google to anonymous account',
+        );
+        return AuthResult.success(
+          linkedCredential.user,
+          isNewUser: linkedCredential.additionalUserInfo?.isNewUser ?? false,
+        );
+      } on FirebaseAuthException catch (e) {
+        debugPrint('[AuthService] Linking failed: ${e.code}');
+
+        if (e.code == 'credential-already-in-use' ||
+            e.code == 'email-already-in-use') {
+          // The Google account is already linked to another Firebase account
+          // Sign in to that account directly (replaces anonymous session)
+          debugPrint(
+            '[AuthService] Credential already in use, signing in to existing account',
+          );
+          try {
+            final UserCredential userCredential = await _auth
+                .signInWithCredential(credential);
+            debugPrint(
+              '[AuthService] Successfully signed in to existing Google account',
             );
-          } else if (e.code == 'invalid-credential') {
-            return AuthResult.failure('The Google credential is invalid');
+            return AuthResult.success(
+              userCredential.user,
+              isNewUser: userCredential.additionalUserInfo?.isNewUser ?? false,
+            );
+          } catch (signInError) {
+            debugPrint('[AuthService] Sign in failed: $signInError');
+            return AuthResult.failure(
+              'Unable to sign in with this Google account. Please try again.',
+            );
           }
-          return AuthResult.failure('Sign in failed: ${e.message}');
+        } else if (e.code == 'email-already-in-use') {
+          return AuthResult.failure(
+            'An account with this email already exists. Please sign in with your existing method.',
+          );
+        } else if (e.code == 'provider-already-linked') {
+          return AuthResult.failure('This account is already linked to Google');
         }
+
+        return AuthResult.failure('Failed to link account: ${e.message}');
       }
     } catch (e, stack) {
       debugPrint('[AuthService] Unexpected error in Google Sign In: $e');

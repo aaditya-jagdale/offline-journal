@@ -90,4 +90,42 @@ class SyncService {
       _isSyncing = false;
     }
   }
+
+  /// Handles the initial sync when a user logs in (Google, Apple, or Email).
+  /// If the user is new: completely push all existing local entries to Firebase.
+  /// If the user already exists: push existing local entries to Firebase (merging),
+  /// and fetch all Firebase entries back to local storage.
+  Future<void> handleInitialSync(bool isNewUser) async {
+    try {
+      debugPrint(
+        'SyncService: Starting handleInitialSync (isNewUser: $isNewUser)...',
+      );
+      final localEntries = await DatabaseService.getAllEntries();
+
+      if (isNewUser) {
+        // Complete push of local entries to Firebase
+        if (localEntries.isNotEmpty) {
+          debugPrint(
+            'SyncService: Pushing ${localEntries.length} local entries to Firebase for new user.',
+          );
+          await FirebaseFirestoreService.backupAllEntries(localEntries);
+        }
+      } else {
+        // Existing user: push local entries to Firebase (merge)
+        if (localEntries.isNotEmpty) {
+          debugPrint(
+            'SyncService: Pushing ${localEntries.length} local entries to Firebase for existing user.',
+          );
+          await FirebaseFirestoreService.syncChanges(localEntries);
+        }
+        // Then, pull all Firebase entries back to local replacing any duplicates/missing
+        debugPrint('SyncService: Restoring from Firebase for existing user.');
+        await restoreFromFirebase();
+      }
+      debugPrint('SyncService: handleInitialSync complete.');
+    } catch (e, stack) {
+      debugPrint('SyncService: Error during handleInitialSync: $e');
+      debugPrint('SyncService: Stack trace: $stack');
+    }
+  }
 }

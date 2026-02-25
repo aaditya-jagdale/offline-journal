@@ -7,8 +7,13 @@ import 'package:jrnl/widgets/top_snackbar.dart';
 
 class DynamicBottomToolbar extends ConsumerStatefulWidget {
   final bool isTyping;
+  final VoidCallback onToggle;
 
-  const DynamicBottomToolbar({super.key, required this.isTyping});
+  const DynamicBottomToolbar({
+    super.key,
+    required this.isTyping,
+    required this.onToggle,
+  });
 
   @override
   ConsumerState<DynamicBottomToolbar> createState() =>
@@ -18,8 +23,6 @@ class DynamicBottomToolbar extends ConsumerStatefulWidget {
 class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-  late Animation<Offset> _slideAnimation;
-  late Animation<double> _fadeAnimation;
   int? _prevRemainingSeconds;
 
   @override
@@ -27,17 +30,7 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _slideAnimation = Tween<Offset>(begin: Offset.zero, end: const Offset(0, 1))
-        .animate(
-          CurvedAnimation(
-            parent: _controller,
-            curve: Curves.easeInOutCubicEmphasized,
-          ),
-        );
-    _fadeAnimation = Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOutCubic),
+      duration: const Duration(milliseconds: 800),
     );
   }
 
@@ -64,7 +57,6 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
     final prefs = ref.watch(preferencesProvider).value;
     final timerState = ref.watch(timerProvider);
 
-    // Check for timer completion
     if (_prevRemainingSeconds != null &&
         _prevRemainingSeconds! > 0 &&
         timerState.remainingSeconds == 0 &&
@@ -77,57 +69,112 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
     }
     _prevRemainingSeconds = timerState.remainingSeconds;
 
-    return SlideTransition(
-      position: _slideAnimation,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Container(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).padding.bottom,
-          ),
-          decoration: BoxDecoration(
-            color: isDark
-                ? Colors.black.withOpacity(0.6)
-                : Colors.white.withOpacity(0.7),
-            border: Border(
-              top: BorderSide(
-                color: isDark
-                    ? Colors.white.withOpacity(0.06)
-                    : Colors.black.withOpacity(0.06),
-                width: 0.5,
-              ),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, -4),
-              ),
-            ],
-          ),
-          child: ClipRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: SafeArea(
-                top: false,
-                child: Container(
-                  height: 72,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    physics: const BouncingScrollPhysics(),
-                    children: [
-                      _buildTimerSection(timerState, isDark),
-                      const SizedBox(width: 20),
-                      _buildFontSizeSection(prefs, isDark),
-                      const SizedBox(width: 20),
-                      _buildFontFamilySection(prefs, isDark),
-                    ],
-                  ),
+    final curve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn,
+    );
+    final fadeCurve = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn,
+    );
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildHandle(isDark),
+            ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: (1.0 - curve.value).clamp(0.0, 1.0),
+                child: Opacity(
+                  opacity: (1.0 - fadeCurve.value).clamp(0.0, 1.0),
+                  child: child!,
                 ),
               ),
             ),
+          ],
+        );
+      },
+      child: Container(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+        decoration: BoxDecoration(
+          color: isDark
+              ? Colors.black.withOpacity(0.6)
+              : Colors.white.withOpacity(0.7),
+          border: Border(
+            top: BorderSide(
+              color: isDark
+                  ? Colors.white.withOpacity(0.06)
+                  : Colors.black.withOpacity(0.06),
+              width: 0.5,
+            ),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: SafeArea(
+              top: false,
+              child: Container(
+                height: 72,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    _buildTimerSection(timerState, isDark),
+                    const SizedBox(width: 20),
+                    _buildFontSizeSection(prefs, isDark),
+                    const SizedBox(width: 20),
+                    _buildFontFamilySection(prefs, isDark),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHandle(bool isDark) {
+    return GestureDetector(
+      onTap: widget.onToggle,
+      child: Container(
+        width: 64,
+        height: 24,
+        decoration: BoxDecoration(
+          color: isDark ? Colors.black : Colors.white,
+          border: Border(
+            top: BorderSide(
+              color: isDark
+                  ? Colors.white.withOpacity(0.6)
+                  : Colors.black.withOpacity(0.6),
+              width: 0.5,
+            ),
+          ),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+        ),
+
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+          child: Icon(
+            widget.isTyping
+                ? Icons.keyboard_arrow_up
+                : Icons.keyboard_arrow_down,
+            color: isDark ? Colors.white54 : Colors.black54,
+            size: 20,
           ),
         ),
       ),

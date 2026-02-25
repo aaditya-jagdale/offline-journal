@@ -17,7 +17,7 @@ class Preferences {
     this.fontFamily = FontFamily.inter,
     this.fontSize = 16,
     this.theme = AppTheme.light,
-    this.isAutoBackupEnabled = false,
+    this.isAutoBackupEnabled = true,
     this.lastSyncTime,
   });
 
@@ -57,7 +57,7 @@ class PreferencesNotifier extends AsyncNotifier<Preferences> {
       fontFamily: FontFamily.values[prefs.getInt(_fontFamilyKey) ?? 0],
       fontSize: prefs.getInt(_fontSizeKey) ?? 16,
       theme: AppTheme.values[prefs.getInt(_themeKey) ?? 0],
-      isAutoBackupEnabled: prefs.getBool(_autoBackupKey) ?? false,
+      isAutoBackupEnabled: prefs.getBool(_autoBackupKey) ?? true,
       lastSyncTime: prefs.containsKey(_lastSyncTimeKey)
           ? DateTime.fromMillisecondsSinceEpoch(prefs.getInt(_lastSyncTimeKey)!)
           : null,

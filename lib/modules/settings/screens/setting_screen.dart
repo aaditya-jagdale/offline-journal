@@ -310,7 +310,7 @@ class _SettingScreenState extends ConsumerState<SettingScreen> {
                           .watch(preferencesProvider)
                           .value
                           ?.isAutoBackupEnabled ??
-                      false;
+                      true;
 
                   return _SettingsTile(
                     icon: SvgPicture.asset(

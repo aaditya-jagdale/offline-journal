@@ -20,7 +20,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (FirebaseAuth.instance.currentUser == null) {
         await FirebaseAuth.instance.signInAnonymously();
       }
-      // Superwall.shared.identify(FirebaseAuth.instance.currentUser!.uid);
+
       clearAllAndPush(context, const HomeScreen());
     });
   }

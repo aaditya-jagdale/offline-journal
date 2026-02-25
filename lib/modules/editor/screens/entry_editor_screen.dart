@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:jrnl/modules/consts/prompt.dart';
 import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
@@ -72,8 +71,13 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   }
 
   void _onTextChanged() {
-    // Mark as typing
-    setState(() => _isTyping = true);
+    // Only auto-close toolbar when starting a new typing session
+    if (!_isTyping) {
+      setState(() {
+        _isTyping = true;
+        _isToolbarClosed = true;
+      });
+    }
 
     // Reset auto-save timer
     _autoSaveTimer?.cancel();
@@ -81,7 +85,10 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
   }
 
   void _saveIfNeeded() {
-    if (_controller.text == _lastSavedBody) return;
+    if (_controller.text == _lastSavedBody) {
+      if (_isTyping) setState(() => _isTyping = false);
+      return;
+    }
 
     final entries = ref.read(entriesProvider).value;
     if (entries == null) return;
@@ -95,6 +102,9 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
         .read(entriesProvider.notifier)
         .updateEntry(entry.copyWith(body: _controller.text));
     _lastSavedBody = _controller.text;
+
+    // Reset typing state after save
+    setState(() => _isTyping = false);
   }
 
   void _deleteEntry() {
@@ -276,10 +286,11 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     ),
                   ],
                 ),
-                body: Column(
+                body: Stack(
                   children: [
-                    Expanded(
+                    Positioned.fill(
                       child: SingleChildScrollView(
+                        padding: const EdgeInsets.only(bottom: 80),
                         child: Column(
                           children: [
                             // Cover Image Section
@@ -339,13 +350,20 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                         ),
                       ),
                     ),
-                    DynamicBottomToolbar(
-                      isTyping: _isTyping || _isToolbarClosed,
-                      onToggle: () {
-                        setState(() {
-                          _isToolbarClosed = !_isToolbarClosed;
-                        });
-                      },
+
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      child: DynamicBottomToolbar(
+                        isTyping: _isToolbarClosed,
+                        onToggle: () {
+                          HapticFeedback.vibrate();
+                          setState(() {
+                            _isToolbarClosed = !_isToolbarClosed;
+                          });
+                        },
+                      ),
                     ),
                   ],
                 ),

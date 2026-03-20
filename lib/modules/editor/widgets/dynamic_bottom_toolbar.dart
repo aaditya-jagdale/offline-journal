@@ -1,18 +1,20 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jrnl/riverpod/preferences_rvpd.dart';
 import 'package:jrnl/riverpod/timer_rvpd.dart';
-import 'package:jrnl/widgets/top_snackbar.dart';
 
 class DynamicBottomToolbar extends ConsumerStatefulWidget {
   final bool isTyping;
   final VoidCallback onToggle;
+  final VoidCallback onTimerComplete;
 
   const DynamicBottomToolbar({
     super.key,
     required this.isTyping,
     required this.onToggle,
+    required this.onTimerComplete,
   });
 
   @override
@@ -62,9 +64,8 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
         timerState.remainingSeconds == 0 &&
         !timerState.isRunning) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          SnackbarService().show(context, 'Timer complete');
-        }
+        HapticFeedback.selectionClick();
+        widget.onTimerComplete();
       });
     }
     _prevRemainingSeconds = timerState.remainingSeconds;
@@ -209,7 +210,7 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
       );
     }
 
-    final durations = [10, 20, 30];
+    final durations = [1,10, 20, 30];
     final selectedIndex = durations.indexOf(timerState.selectedDuration);
 
     return _buildSection(

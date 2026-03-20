@@ -52,7 +52,7 @@ class _EntryCardState extends State<EntryCard> {
 
     // Get first line of body, truncated
     final firstLine = widget.entry.body.isEmpty
-        ? 'Empty entry'
+        ? 'Untitled'
         : widget.entry.body.split('\n').first;
 
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');

@@ -25,7 +25,7 @@ class RevenueCatService {
   final String lifetimeId = 'lifetime';
 
   /// Maximum number of free entries allowed for non-pro users.
-  static const int freeEntryLimit = 2;
+  static const int freeEntryLimit = 5;
 
   /// Initialize the RevenueCat SDK.
   Future<void> initialize() async {

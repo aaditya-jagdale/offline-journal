@@ -286,22 +286,50 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     ),
                   ],
                 ),
-                body: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: SingleChildScrollView(
-                        padding: const EdgeInsets.only(bottom: 80),
-                        child: Column(
-                          children: [
-                            // Cover Image Section
-                            if (_coverImageFile != null)
-                              _buildCoverImageSection(theme),
-                            // Text Editor
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
-                              child: GestureDetector(
-                                onTap:
-                                    isPro ||
+                body: SafeArea(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.only(bottom: 80),
+                          child: Column(
+                            children: [
+                              // Cover Image Section
+                              if (_coverImageFile != null)
+                                _buildCoverImageSection(theme),
+                              // Text Editor
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  0,
+                                ),
+                                child: GestureDetector(
+                                  onTap:
+                                      isPro ||
+                                          ((ref.read(isProProvider).value !=
+                                                      null &&
+                                                  ref
+                                                      .read(isProProvider)
+                                                      .value!) ||
+                                              !widget.entry.createdAt.isBefore(
+                                                DateTime(
+                                                  DateTime.now().year,
+                                                  DateTime.now().month,
+                                                  DateTime.now().day,
+                                                ),
+                                              ))
+                                      ? null
+                                      : () {
+                                          debugPrint(
+                                            "==========Presenting paywall==========",
+                                          );
+                                          _rc.presentPaywallIfNeeded();
+                                        },
+                                  child: TextField(
+                                    enabled:
+                                        isPro ||
                                         ((ref.read(isProProvider).value !=
                                                     null &&
                                                 ref
@@ -313,59 +341,47 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                                                 DateTime.now().month,
                                                 DateTime.now().day,
                                               ),
-                                            ))
-                                    ? null
-                                    : () {
-                                        debugPrint(
-                                          "==========Presenting paywall==========",
-                                        );
-                                        _rc.presentPaywallIfNeeded();
-                                      },
-                                child: TextField(
-                                  enabled:
-                                      isPro ||
-                                      ((ref.read(isProProvider).value != null &&
-                                              ref.read(isProProvider).value!) ||
-                                          !widget.entry.createdAt.isBefore(
-                                            DateTime(
-                                              DateTime.now().year,
-                                              DateTime.now().month,
-                                              DateTime.now().day,
-                                            ),
-                                          )),
-                                  controller: _controller,
-                                  onChanged: (_) => _onTextChanged(),
-                                  maxLines: null,
-                                  autofocus: _coverImageFile == null,
-                                  style: textStyle,
-                                  decoration: const InputDecoration(
-                                    border: InputBorder.none,
-                                    hintText: 'Start writing...',
+                                            )),
+                                    controller: _controller,
+                                    onChanged: (_) => _onTextChanged(),
+                                    maxLines: null,
+                                    autofocus: _coverImageFile == null,
+                                    style: textStyle,
+                                    decoration: const InputDecoration(
+                                      border: InputBorder.none,
+                                      hintText: 'Start writing...',
+                                    ),
+                                    textAlignVertical: TextAlignVertical.top,
                                   ),
-                                  textAlignVertical: TextAlignVertical.top,
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
-                    ),
 
-                    Positioned(
-                      bottom: 0,
-                      left: 0,
-                      right: 0,
-                      child: DynamicBottomToolbar(
-                        isTyping: _isToolbarClosed,
-                        onToggle: () {
-                          HapticFeedback.vibrate();
-                          setState(() {
-                            _isToolbarClosed = !_isToolbarClosed;
-                          });
-                        },
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: DynamicBottomToolbar(
+                          isTyping: _isToolbarClosed,
+                          onToggle: () {
+                            HapticFeedback.vibrate();
+                            setState(() {
+                              _isToolbarClosed = !_isToolbarClosed;
+                            });
+                          },
+                          onTimerComplete: () {
+                            SnackbarService().show(context, 'Timer complete');
+                            setState(() {
+                              _isToolbarClosed = false;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             );

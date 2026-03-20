@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:jrnl/modules/editor/screens/share_preview_screen.dart';
 import 'package:jrnl/modules/editor/widgets/dynamic_bottom_toolbar.dart';
 import 'package:jrnl/modules/home/models/entry_model.dart';
 import 'package:jrnl/riverpod/entries_rvpd.dart';
@@ -248,21 +249,6 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                     ),
 
                     IconButton(
-                      icon:
-                          ref.read(preferencesProvider).value?.theme ==
-                              AppTheme.dark
-                          ? const Icon(Icons.light_mode_outlined)
-                          : const Icon(Icons.dark_mode_outlined),
-                      onPressed: () {
-                        final currentTheme = prefs.theme;
-                        final isLight = currentTheme == AppTheme.light;
-
-                        ref
-                            .read(preferencesProvider.notifier)
-                            .setTheme(isLight ? AppTheme.dark : AppTheme.light);
-                      },
-                    ),
-                    IconButton(
                       icon: SvgPicture.asset(
                         "assets/icons/copy.svg",
                         height: 20,
@@ -273,16 +259,107 @@ class _EntryEditorScreenState extends ConsumerState<EntryEditorScreen> {
                       ),
                       onPressed: _copyEntry,
                     ),
+
                     IconButton(
-                      icon: SvgPicture.asset(
-                        "assets/icons/delete.svg",
-                        height: 20,
-                        colorFilter: ColorFilter.mode(
-                          theme.colorScheme.onSurface,
-                          BlendMode.srcIn,
-                        ),
+                      icon: Icon(
+                        Icons.more_vert_rounded,
+                        color: theme.colorScheme.onSurface,
                       ),
-                      onPressed: _deleteEntry,
+                      onPressed: () {
+                        // Open menu options
+                        showMenu(
+                          context: context,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          shadowColor: theme.colorScheme.onSurface.withAlpha(
+                            50,
+                          ),
+                          elevation: 10,
+                          menuPadding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          position: RelativeRect.fromLTRB(
+                            MediaQuery.of(context).size.width - 50,
+                            50,
+                            MediaQuery.of(context).size.width,
+                            0,
+                          ),
+                          items: [
+                            PopupMenuItem(
+                              onTap: _deleteEntry,
+                              child: Row(
+                                children: [
+                                  SvgPicture.asset(
+                                    "assets/icons/delete.svg",
+                                    height: 20,
+                                    colorFilter: ColorFilter.mode(
+                                      theme.colorScheme.onSurface,
+                                      BlendMode.srcIn,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text("Delete"),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              onTap: () {
+                                final currentTheme = prefs.theme;
+                                final isLight = currentTheme == AppTheme.light;
+
+                                ref
+                                    .read(preferencesProvider.notifier)
+                                    .setTheme(
+                                      isLight ? AppTheme.dark : AppTheme.light,
+                                    );
+                              },
+                              child: Row(
+                                children: [
+                                  ref.read(preferencesProvider).value?.theme ==
+                                          AppTheme.dark
+                                      ? const Icon(Icons.light_mode_outlined)
+                                      : const Icon(Icons.dark_mode_outlined),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    ref
+                                                .read(preferencesProvider)
+                                                .value
+                                                ?.theme ==
+                                            AppTheme.dark
+                                        ? "Light"
+                                        : "Dark",
+                                  ),
+                                ],
+                              ),
+                            ),
+                            PopupMenuItem(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => SharePreviewScreen(
+                                      entry: entry,
+                                      entryText: _controller.text,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons.ios_share,
+                                    color: theme.colorScheme.onSurface,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text("Share"),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ],
                 ),

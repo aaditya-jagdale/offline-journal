@@ -210,7 +210,7 @@ class _DynamicBottomToolbarState extends ConsumerState<DynamicBottomToolbar>
       );
     }
 
-    final durations = [1, 10, 20, 30];
+    final durations = [1,10, 20, 30];
     final selectedIndex = durations.indexOf(timerState.selectedDuration);
 
     return _buildSection(
